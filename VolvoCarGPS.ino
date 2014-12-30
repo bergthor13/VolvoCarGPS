@@ -17,8 +17,7 @@
 
 #define chipSelect 10
 #define ledPin 13
-int pressed;
-int screen = 0;
+int screen = 0, secs = 0;
 double maxAlt = -3.4028235E+38, minAlt = 3.4028235E+38, maxSpeed = -3.4028235E+38, avgSpeed, maxTemp = -3.4028235E+38, minTemp = 3.4028235E+38, currTemp, currAlt, currSpeed;
 bool wasPressed = false;
 #define displayButton 40
@@ -96,7 +95,7 @@ void setup() {
     Serial. begin(115200);
     sensors.begin();
     pinMode(ledPin, OUTPUT);
-    
+
     // make sure that the default chip select pin is set to
     // output, even if you don't use it:
     pinMode(10, OUTPUT);
@@ -126,7 +125,7 @@ void setup() {
     display.setCursor(17,50);
     display.println("Creating file...");
     display.display();
-    
+
     char filename[15];
     strcpy(filename, "LOG0000.csv");
     for (uint8_t i = 0; i < 10000; i++) {
@@ -134,7 +133,7 @@ void setup() {
         filename[4] = '0' + (i/100)%10;
         filename[5] = '0' + (i/10)%10;
         filename[6] = '0' + i%10;
-        
+
         // create if does not exist, do not open existing, write, sync after write
         if (! SD.exists(filename)) {
             Serial.print(filename);
@@ -143,7 +142,7 @@ void setup() {
         }
         logs = i+1;
     }
-    
+
     logfile = SD.open(filename, FILE_WRITE);
     if(!logfile) {
         Serial.print("Couldnt create ");
@@ -170,7 +169,7 @@ void setup() {
     display.display();
     // connect to the GPS at the desired rate
     GPS.begin(9600);
-    
+
     // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
     GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
     // uncomment this line to turn on only the "minimum recommended" data
@@ -179,10 +178,10 @@ void setup() {
     // to keep the log files at a reasonable size
     // Set the update rate
     GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
-    
+
     // Turn off updates on antenna status, if the firmware permits it
     GPS.sendCommand(PGCMD_NOANTENNA);
-    
+
     // the nice thing about this code is you can have a timer0 interrupt go off
     // every 1 millisecond, and read data from the GPS for you. that makes the
     // loop code a heck of a lot easier!
@@ -238,9 +237,9 @@ void printDate() {
     else {
         display.print(GPS.day);
     }
-    
+
     display.print(".");
-    
+
     if(GPS.month < 10) {
         display.print("0");
         display.print(GPS.month);
@@ -248,9 +247,9 @@ void printDate() {
     else {
         display.print(GPS.month);
     }
-    
+
     display.print(".20");
-    
+
     if(GPS.year < 10){
         display.print("0");
         display.print(GPS.year, DEC);
@@ -291,11 +290,11 @@ void printTopBar() {
     display.setTextColor(BLACK, WHITE);
     display.drawLine(0, 0, display.width()-2,0, WHITE);
     display.drawLine(0, 0, 0, 9, WHITE);
-    
+
     printDate();
     display.print("   ");
     printTime();
-    
+
     display.setTextColor(WHITE);
     display.drawLine(0, 9, display.width()-2, 9, WHITE);
 }
@@ -318,7 +317,7 @@ void logPointToFile(DeviceAddress tempSensor) {
     }
     logfile.print(GPS.year);
     logfile.print('-');
-    
+
     if (GPS.month >= 10) {
         logfile.print(GPS.month);
         logfile.print('-');
@@ -328,7 +327,7 @@ void logPointToFile(DeviceAddress tempSensor) {
         logfile.print(GPS.month);
         logfile.print('-');
     }
-    
+
     if (GPS.day >= 10)    {
         logfile.print(GPS.day);
         logfile.print('-');
@@ -337,40 +336,40 @@ void logPointToFile(DeviceAddress tempSensor) {
         logfile.print('0');
         logfile.print(GPS.day);
     }
-    
+
     logfile.print('T');
-    
+
     if (GPS.hour >= 10)    {
         logfile.print(GPS.hour), logfile.print(':');
     }
     else {
         logfile.print('0'), logfile.print(GPS.hour), logfile.print(':');
     }
-    
+
     if (GPS.minute >= 10)    {
         logfile.print(GPS.minute), logfile.print(':');
     }
     else {
         logfile.print('0'), logfile.print(GPS.minute), logfile.print(':');
     }
-    
+
     if (GPS.seconds >= 10)    {
         logfile.print(GPS.seconds), logfile.print('.');
     }
     else {
         logfile.print('0'), logfile.print(GPS.seconds), logfile.print('.');
     }
-    
+
     logfile.print(GPS.milliseconds);
     logfile.print('Z');
     logfile.print(';');
-    
+
     logfile.print(GPS.latitudeDegrees,14);
     logfile.print(';');
-    
+
     logfile.print(GPS.longitudeDegrees,14);
     logfile.print(';');
-    
+
     logfile.print(GPS.altitude);
     if(logfile.print(';') == 0) {
         display.clearDisplay();
@@ -437,7 +436,7 @@ void displaySPD() {
     }*/
     display.println("N/A");
 
-    
+
     display.setCursor(70,44);
     display.println("Max Speed");
     display.setCursor(77,55);
@@ -455,7 +454,7 @@ void displaySPD() {
     }
 }
 void displayGEN() {
-    
+
     display.setCursor(0,12);
     display.print("SPD: ");
     GPS.speed < 1000 ? display.println(GPS.speed*1.852, 2) : display.println(GPS.speed*1.852, 1);
@@ -464,13 +463,13 @@ void displayGEN() {
     display.print("ANG: ");
     display.println(GPS.angle,2);
     display.print("TMP: ");
-    
+
     if (currTemp != -3.4028235E+38) {
       display.println(currTemp);
     } else {
       display.println("NO DAT");
     }
-    
+
     // Lower horizontal line
     display.drawLine(0, 47, display.width(), 47, WHITE);
     display.println();
@@ -524,7 +523,7 @@ void displayTMP(){
         }
         display.setTextSize(1);
         display.println("deg. cels.");
-        
+
         display.setCursor(75,14);
         display.println("Max Temp");
         display.setCursor(77,25);
@@ -540,7 +539,7 @@ void displayTMP(){
             else display.print(maxTemp, 0);
         }
         display.println(" C");
-        
+
         display.setCursor(75,44);
         display.println("Min Temp");
         display.setCursor(77,55);
@@ -585,7 +584,7 @@ void displayALT(){
     }
     display.setTextSize(1);
     display.println("meters asl");
-    
+
     display.setCursor(75,14);
     display.println("Max Alt.");
     display.setCursor(77,25);
@@ -602,7 +601,7 @@ void displayALT(){
         else display.print(maxAlt, 0);
     }
     display.println(" m");
-    
+
     display.setCursor(75,44);
     display.println("Min Alt.");
     display.setCursor(77,55);
@@ -618,7 +617,7 @@ void displayALT(){
         else if (minAlt > -1000) display.print(minAlt, 1);
         else display.print(minAlt, 0);
     }
-    display.println(" m");  
+    display.println(" m");
 }
 void displayANG(){
     display.drawLine(64, 10, 64, display.height(), WHITE);
@@ -664,22 +663,22 @@ void loop() {
         if (GPSECHO)
             if (c) Serial.print(c);
     }
-    
+
     // if a sentence is received, we can check the checksum, parse it...
     if (GPS.newNMEAreceived()) {
         // a tricky thing here is if we print the NMEA sentence, or data
-        // we end up not listening and catching other sentences! 
+        // we end up not listening and catching other sentences!
         // so be very wary if using OUTPUT_ALLDATA and trying to print out data
-        
-        // Don't call lastNMEA more than once between parse calls!  Calling lastNMEA 
+
+        // Don't call lastNMEA more than once between parse calls!  Calling lastNMEA
         // will clear the received flag and can cause very subtle race conditions if
         // new data comes in before parse is called again.
         char *stringptr = GPS.lastNMEA();
-        
+
         if (!GPS.parse(stringptr))   // this also sets the newNMEAreceived() flag to false
             return;  // we can fail to parse a sentence in which case we should just wait for another
-        
-        // Sentence parsed! 
+
+        // Sentence parsed!
         if (LOG_FIXONLY && !GPS.fix) {
             Serial.print("No Fix");
             return;
@@ -687,7 +686,7 @@ void loop() {
         // Refresh the display.
         display.clearDisplay();
         display.setTextSize(1);
-        
+
         sensors.requestTemperatures();
         if (sensors.getAddress(tempDeviceAddress, 0)) {
             double temp = sensors.getTempC(tempDeviceAddress);
@@ -708,14 +707,15 @@ void loop() {
         double potPos = analogRead(0);
         Serial.print (potPos); Serial.print(" - ");
         if (potPos == 1023)                 {display.clearDisplay(); display.display();}
-        if (potPos >= 0   && potPos < 146)   displayGEN();
+        if (potPos == 0)                    {scrollDisplays();}
+        if (potPos > 0   && potPos < 146)    displayGEN();
         if (potPos >= 146 && potPos < 292)   displaySPD();
         if (potPos >= 292 && potPos < 438)   displayTMP();
         if (potPos >= 438 && potPos < 585)   displayALT();
         if (potPos >= 585 && potPos < 731)   displayANG();
         if (potPos >= 731 && potPos < 877)   displayLOC();
         if (potPos >= 877 && potPos < 1023)  displayDAT();
-        
+
         // Rad. lets log it!
         if (GPS.fix && strstr(stringptr, "RMC")){
             logPointToFile(tempDeviceAddress);
