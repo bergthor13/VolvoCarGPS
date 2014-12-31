@@ -253,7 +253,6 @@ void printDate() {
     if(GPS.year < 10){
         display.print("0");
         display.print(GPS.year, DEC);
-        display.print("   ");
     }
     else {
         display.print(GPS.year, DEC);
@@ -330,9 +329,7 @@ void logPointToFile(DeviceAddress tempSensor) {
 
     if (GPS.day >= 10)    {
         logfile.print(GPS.day);
-        logfile.print('-');
-    }
-    else {
+    } else {
         logfile.print('0');
         logfile.print(GPS.day);
     }
@@ -488,7 +485,7 @@ void displayGEN() {
     else {
         if (!gotFix)
             display.print(" Acquiring Satellites ");
-        else                                    //
+        else
             display.print("   Satellites Lost.   ");
     }
     display.setCursor(75,12);
@@ -655,6 +652,28 @@ void displayLOC(){
     GPS.lon == 'W' ? display.print((-1)*GPS.longitudeDegrees, 5) : display.print(GPS.longitudeDegrees, 5);
 }
 
+void scrollDisplays() {
+  if (secs == 10) {
+    secs = 0;
+    screen++;
+    if (screen > 6) {
+      screen = 0;
+    }
+  }
+
+  switch (screen) {
+    case 0: displayGEN(); break;
+    case 1: displaySPD(); break;
+    case 2: displayTMP(); break;
+    case 3: displayALT(); break;
+    case 4: displayANG(); break;
+    case 5: displayLOC(); break;
+    case 6: displayDAT(); break;
+  }
+
+  secs++;
+}
+
 void loop() {
     if (! usingInterrupt) {
         // read data from the GPS in the 'main loop'
@@ -680,7 +699,6 @@ void loop() {
 
         // Sentence parsed!
         if (LOG_FIXONLY && !GPS.fix) {
-            Serial.print("No Fix");
             return;
         }
         // Refresh the display.
