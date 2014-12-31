@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>3B467C67-3CD5-4867-9C78-F45C287811F7</string>
+	<key>IDESourceControlProjectName</key>
+	<string>CSV_to_GPX</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>BD06959C42B55E656A08EF2EF2C008796E308BD6</key>
+		<string>https://github.com/bergthor13/VolvoCarGPS.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>CSV_to_GPX/CSV_to_GPX.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>BD06959C42B55E656A08EF2EF2C008796E308BD6</key>
+		<string>../../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>https://github.com/bergthor13/VolvoCarGPS.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>BD06959C42B55E656A08EF2EF2C008796E308BD6</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>BD06959C42B55E656A08EF2EF2C008796E308BD6</string>
+			<key>IDESourceControlWCCName</key>
+			<string>VolvoCarGPS</string>
+		</dict>
+	</array>
+</dict>
+</plist>
