@@ -23,9 +23,7 @@ bool wasPressed = false;
 #define displayButton 40
 // LAST UPDATED 26.12.2014
 
-HardwareSerial    mySerial = Serial1;
-
-Adafruit_GPS      GPS(&mySerial);
+Adafruit_GPS      GPS(&Serial1);
 Adafruit_SSD1306  display(OLED_RESET);
 OneWire           oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
@@ -92,7 +90,7 @@ void setup() {
     display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
     display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
     display.display();
-    Serial. begin(115200);
+    Serial. begin(9600);
     sensors.begin();
     pinMode(ledPin, OUTPUT);
 
@@ -177,8 +175,9 @@ void setup() {
     // For logging data, we don't suggest using anything but either RMC only or RMC+GGA
     // to keep the log files at a reasonable size
     // Set the update rate
+    Serial.println("HERE");
     GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
-
+Serial.println("NOT HERE");
     // Turn off updates on antenna status, if the firmware permits it
     GPS.sendCommand(PGCMD_NOANTENNA);
 
