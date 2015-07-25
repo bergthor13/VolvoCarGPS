@@ -322,40 +322,11 @@ void printTopBar() {
 	display.setTextSize(2);
 	if (asdf == 0)
 	{
+		display.setCursor(3,3);
 		display.fillRect(0, 0, 320, 20, GREEN);
-		display.drawLine(107, 0, 107, 215, GREEN);
-		display.drawLine(213, 0, 213, 215, GREEN);
-		display.drawLine(0, 118, 320, 118, GREEN);
-		display.drawLine(0, 215, 320, 215, GREEN);
-		display.drawLine(250, 215, 250, 240, GREEN);
-		display.setTextColor(GREEN);
-		display.setCursor(39,30);
-		display.setTextSize(1);
-		display.print("SPEED");
-
-		display.setCursor(134,30);
-		display.setTextSize(1);
-		display.print("DIRECTION");
-
-		display.setCursor(234,30);
-		display.setTextSize(1);
-		display.print("TEMPERATURE");
-
-		display.setCursor(30,128);
-		display.setTextSize(1);
-		display.print("ALTITUDE");
-
-		display.setCursor(131,128);
-		display.setTextSize(1);
-		display.print("SATELLITES");
-
-		display.setCursor(258,128);
-		display.setTextSize(1);
-		display.print("LOG");
-
-		display.setCursor(249,158);
-		display.setTextSize(1);
-		display.print("POINTS");
+		printDate();
+		display.print("        ");
+		printTime();
 		asdf++;
 	} else {
 		display.setTextSize(2);
@@ -439,54 +410,159 @@ void printTopBar() {
 		}
 
 	}
-	display.setCursor(3,3);
 
-
-	printDate();
-	display.print("        ");
-	printTime();
 	oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec);
-	display.setCursor(3,221);
+}
+
+struct GPS_Status
+{
+	int fix;
+	double lat, lon;
+	GPS_Status(int fix, double lat, double lon) {
+		this->fix = fix;
+		this->lat = lat;
+		this->lon = lon;
+	}
+	void updateStatus(int fix, double lat, double lon) {
+		this->fix = fix;
+		this->lat = lat;
+		this->lon = lon;
+	}
+};
+
+GPS_Status newGpsStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
+GPS_Status oldGpsStatus(-1, 0, 0);
+
+class SummaryScreen {
+
+	void displaySpeed() {
+
+	}
+
+	void displayDirection() {
+
+	}
+
+	void displayTemperature() {
+
+	}
+
+	void displayAltitude() {
+
+	}
+
+	void displaySatellites() {
+
+	}
+
+	void displayLogsAndPoints() {
+
+	}
+
+	void displayOutlines() {
+		display.drawLine(107, 0, 107, 215, GREEN);
+		display.drawLine(213, 0, 213, 215, GREEN);
+		display.drawLine(0, 118, 320, 118, GREEN);
+		display.drawLine(0, 215, 320, 215, GREEN);
+	}
+
+public:
+	void display() {
+
+	}
+};
+
+void displayGEN() {
+	newGpsStatus.updateStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
+
 	display.setTextColor(GREEN);
+	display.setCursor(39,30);
+	display.setTextSize(1);
+	display.print("SPEED");
+
+	display.setCursor(134,30);
+	display.setTextSize(1);
+	display.print("DIRECTION");
+
+	display.setCursor(234,30);
+	display.setTextSize(1);
+	display.print("TEMPERATURE");
+
+	display.setCursor(30,128);
+	display.setTextSize(1);
+	display.print("ALTITUDE");
+
+	display.setCursor(131,128);
+	display.setTextSize(1);
+	display.print("SATELLITES");
+
+	display.setCursor(258,128);
+	display.setTextSize(1);
+	display.print("LOG");
+
+	display.setCursor(249,158);
+	display.setTextSize(1);
+	display.print("POINTS");
+
+
+	display.setTextColor(GREEN);
+	display.setTextSize(2);
 
 	if (GPS.fix) {
+		display.setCursor(35,221);
 		gotFix = true;
-		display.fillRect(0,216,320,25, BLACK);
-		display.print(GPS.lat);
-		display.print(" ");
-		GPS.lat == 'N' ? display.print(GPS.latitudeDegrees, 4) : display.print((-1)*GPS.latitudeDegrees, 4);
-		display.print("  ");
-		display.print(GPS.lon);
-		display.print(" ");
-		GPS.lon == 'W' ? display.print((-1)*GPS.longitudeDegrees, 4) : display.print(GPS.longitudeDegrees, 4);
+		if (newGpsStatus.lat != oldGpsStatus.lat ||
+			newGpsStatus.lon != oldGpsStatus.lon) {
+
+			display.fillRect(35,221,250,16, BLACK);
+			display.print(GPS.lat);
+			display.print(" ");
+			GPS.lat == 'N' ? display.print(GPS.latitudeDegrees, 4) : display.print((-1)*GPS.latitudeDegrees, 4);
+			display.print("   ");
+			display.print(GPS.lon);
+			display.print(" ");
+			GPS.lon == 'W' ? display.print((-1)*GPS.longitudeDegrees, 4) : display.print(GPS.longitudeDegrees, 4);
+		}
 	}
 	else {
-			display.fillRect(0,216,320,25, BLACK);
-		if (!gotFix)
-			display.print(" Acquiring Satellites ");
-		else
-			display.print("   Satellites Lost.   ");
-	}
 
+		if (newGpsStatus.fix != oldGpsStatus.fix)
+		{
+			display.fillRect(0,216,320,25, BLACK);
+			if (!gotFix) {
+				display.setCursor(41,221);
+				display.setTextColor(BLUE);
+				display.print("Acquiring Satellites");
+			} else {
+				display.setCursor(71,221);
+				display.setTextColor(RED);
+				display.print("Satellites Lost");
+			}
+		}
+
+	}
+	display.setTextColor(GREEN);
 	display.setCursor(10,64);
 	display.setTextSize(3);
-	display.print(30.4,1);
+	display.print(30.43,2);
 
-	display.setCursor(120,64);
-	display.setTextSize(3);
+	display.setCursor(144,64);
 	display.print("NW");
 
-		display.setCursor(240,64);
-	display.setTextSize(3);
-	display.print(24.3,1);
+	display.setTextSize(2);
+	display.setCursor(125,95);
+	display.print("325.66");
 
-		display.setCursor(10,170);
 	display.setTextSize(3);
+	display.setCursor(232,64);
+	display.print("DISC");
+
+	display.setCursor(19,162);
 	display.print(29.5,1);
 
-		display.setCursor(120,170);
-	display.setTextSize(3);
+	display.setCursor(153,162);
 	display.print((int)GPS.satellites);
+	oldGpsStatus.updateStatus(newGpsStatus.fix, newGpsStatus.lat, newGpsStatus.lon);
 }
 
 void displayLogsAndPoints() {
@@ -607,13 +683,14 @@ void loop() {
 			Serial.println("UPPER RIGHT");
 
 		} else if (p.x > 130 && p.y < 107) {
+			displayLogsAndPoints();
 			Serial.println("LOWER RIGHT");
 
 		} else if (p.x > 20 && p.x < 130 && p.y > 160) {
 			Serial.println("UPPER LEFT");
 
 		} else if (p.x > 130 && p.y > 160) {
-			displayLogsAndPoints();
+			Serial.println("LOWER LEFT");
 		}
 	} else if (!ts.touched()) {
 		hasBeenPressed = false;
@@ -647,6 +724,7 @@ void loop() {
 		}
 		// TODO: Refresh the display.
 		printTopBar();
+		displayGEN();
 
 		sensors.requestTemperatures();
 		if (sensors.getAddress(tempDeviceAddress, 0)) {
