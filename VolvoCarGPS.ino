@@ -58,6 +58,8 @@ bool         gotFix         = false;
 boolean      usingInterrupt = false;
 unsigned int trkpts         = 0;
 unsigned int logs           = 0;
+int currentScreen           = 0;
+bool refresh = true;
 
 void useInterrupt(boolean);
 
@@ -98,7 +100,7 @@ void setup() {
 	Serial.println("Testing");
 	display.fillScreen(BLACK);
 	//display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
-	//display.display();
+	display.println("Initializing...");
 	Serial. begin(115200);
 	sensors.begin();
 	ts.begin();
@@ -111,19 +113,18 @@ void setup() {
 	// see if the card is present and can be initialized:
 	if (!SD.begin(chipSelect, 11, 12, 13)) {
 		Serial.println("Card init. failed!");
-		//display.clearDisplay();
-		//display.setTextColor(WHITE);
-		// display.setTextSize(3);
-		// display.setCursor(22,4);
-		// display.println("ERROR");
-		// display.setTextSize(1);
-		// display.setCursor(5,30);
-		// display.println("SD card not found or");
-		// display.setCursor(25,40);
-		// display.println("it couldn't be");
-		// display.setCursor(30,50);
-		// display.println("initialized");
-		// display.display();
+		display.fillScreen(BLACK);
+		display.setTextColor(RED);
+		display.setTextSize(5);
+		display.setCursor(88,71);
+		display.println("ERROR");
+		display.setTextSize(2);
+		display.setCursor(41,117);
+		display.println("SD card not found or");
+		display.setCursor(77,136);
+		display.println("it couldn't be");
+		display.setCursor(89,155);
+		display.println("initialized.");
 		error(2);
 	}
 	// display.clearDisplay();
@@ -131,7 +132,7 @@ void setup() {
 	// display.setTextColor(WHITE);
 	// display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
 	// display.setCursor(17,50);
-	// display.println("Creating file...");
+	display.println("Creating file...");
 	// display.display();
 
 	char filename[15];
@@ -155,17 +156,16 @@ void setup() {
 	if(!logfile) {
 		Serial.print("Couldnt create ");
 		Serial.println(filename);
-		// display.clearDisplay();
-		// display.setTextColor(WHITE);
-		// display.setTextSize(3);
-		// display.setCursor(22,4);
-		// display.println("ERROR");
-		// display.setTextSize(1);
-		// display.setCursor(30,30);
-		// display.println(filename);
-		// display.setCursor(0,40);
-		// display.println(" couldn't be created");
-		// display.display();
+		display.fillScreen(BLACK);
+		display.setTextColor(RED);
+		display.setTextSize(5);
+		display.setCursor(88,81);
+		display.println("ERROR");
+		display.setTextSize(2);
+		display.setCursor(95,127);
+		display.println(filename);
+		display.setCursor(47,146);
+		display.println("couldn't be created");
 		error(3);
 	}
 	// display.clearDisplay();
@@ -176,6 +176,7 @@ void setup() {
 	// display.println("Starting GPS...");
 	// display.display();
 	// connect to the GPS at the desired rate
+	display.println("Starting GPS...");
 	GPS.begin(9600);
 
 	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
@@ -194,6 +195,7 @@ void setup() {
 	// every 1 millisecond, and read data from the GPS for you. that makes the
 	// loop code a heck of a lot easier!
 	useInterrupt(true);
+	display.fillScreen(BLACK);
 
 }
 // Interrupt is called once a millisecond, looks for any new GPS data, and stores it
@@ -222,17 +224,7 @@ void useInterrupt(boolean v) {
 	}
 }
 // Printers.
-void printDirection() {
-	if(GPS.angle >= 337 && GPS.angle <= 360) display.print("N");
-	if(GPS.angle >= 0   && GPS.angle < 22)   display.print("N");
-	if(GPS.angle >= 22  && GPS.angle < 67)   display.print("NE");
-	if(GPS.angle >= 67  && GPS.angle < 112)  display.print("E");
-	if(GPS.angle >= 112 && GPS.angle < 157)  display.print("SE");
-	if(GPS.angle >= 157 && GPS.angle < 202)  display.print("S");
-	if(GPS.angle >= 202 && GPS.angle < 247)  display.print("SW");
-	if(GPS.angle >= 247 && GPS.angle < 292)  display.print("W");
-	if(GPS.angle >= 292 && GPS.angle < 337)  display.print("NW");
-}
+
 void printAngle() {
 	// if      (round(GPS.angle) < 10)  display.print("00");
 	// else if (round(GPS.angle) < 100) display.print("0");
@@ -435,76 +427,258 @@ GPS_Status oldGpsStatus(-1, 0, 0);
 
 class SummaryScreen {
 
+	double oldSpeed, oldAngle, oldTemperature, oldAltitude;
+	int oldPoints = -1, oldSatellites;
+	String oldDirection;
+
+	String getDirection(double angle) {
+		if(angle >= 337 && angle <= 360) return "N";
+		if(angle >= 0   && angle < 22)   return "N";
+		if(angle >= 67  && angle < 112)  return "E";
+		if(angle >= 157 && angle < 202)  return "S";
+		if(angle >= 247 && angle < 292)  return "W";
+		if(angle >= 22  && angle < 67)   return "NE";
+		if(angle >= 112 && angle < 157)  return "SE";
+		if(angle >= 202 && angle < 247)  return "SW";
+		if(angle >= 292 && angle < 337)  return "NW";
+	}
+
 	void displaySpeed(double speed) {
 		display.setTextColor(GREEN);
-		display.setCursor(39,30);
-		display.setTextSize(1);
-		display.print("SPEED");
-
-		display.setCursor(10,64);
-		display.setTextSize(3);
-		display.print(30.43,2);
+		if (refresh) {
+			display.setCursor(39,30);
+			display.setTextSize(1);
+			display.print("SPEED");
+		}
+		if (speed != this->oldSpeed) {
+			display.setTextSize(3);
+			display.fillRect(0,64,107,21,BLACK);
+			if (speed < 10) {
+				display.setCursor(19,64);
+				display.print(speed,2);
+			} else if (speed >= 10 && speed < 100) {
+				display.setCursor(10,64);
+				display.print(speed,2);
+			} else if (speed >= 100 && speed < 1000) {
+				display.setCursor(10,64);
+				display.print(speed,1);
+			} else if (speed >= 1000) {
+				display.setCursor(19,64);
+				display.print(speed,0);
+			}
+		}
+		this->oldSpeed = speed;
 	}
 
 	void displayDirection(double angle) {
-		display.setCursor(134,30);
-		display.setTextSize(1);
-		display.print("DIRECTION");
 
-		display.setTextSize(3);
-		display.setCursor(144,64);
-		display.print("NW");
+		if (refresh) {
+				display.setCursor(134,30);
+				display.setTextSize(1);
+				display.print("DIRECTION");
+		}
 
+		String dir = this->getDirection(angle);
+		if (this->oldDirection != dir) {
+			display.setTextSize(3);
+			display.fillRect(144,64,33,21, BLACK);
+			if      (dir.length() == 1) display.setCursor(153,64);
+			else if (dir.length() == 2) display.setCursor(144,64);
+			display.print(dir);
+		}
+		this->oldDirection = dir;
 		display.setTextSize(2);
-		display.setCursor(125,95);
-		display.print("325.66");
+
+		if (this->oldAngle != angle) {
+			display.fillRect(125,95,70,14, BLACK);
+			if (angle >= 0 && angle < 10) {
+				display.setCursor(137,95);
+				display.print(angle);
+			} else if (angle >= 10 && angle < 100) {
+				display.setCursor(131,95);
+				display.print(angle);
+			} else if (angle >= 100) {
+				display.setCursor(125,95);
+				display.print(angle);
+			}
+		}
+		this->oldAngle = angle;
 	}
 
 	void displayTemperature(double temp) {
-		display.setCursor(234,30);
-		display.setTextSize(1);
-		display.print("TEMPERATURE");
+		if (refresh) {
+			display.setCursor(234,30);
+			display.setTextSize(1);
+			display.print("TEMPERATURE");
+		}
 		display.setTextSize(3);
-		display.setCursor(232,64);
-		display.print("DISC");
+		if (this->oldTemperature != temp) {
+			display.fillRect(214,64,107,21,BLACK);
+			if (currTemp != -3.4028235E+38) {
+				if (temp <= -1000) {
+					display.setCursor(223,64);
+					display.print(temp,0);
+				} else if (temp <= -100 && temp > -1000) {
+					display.setCursor(232,64);
+					display.print(temp,0);
+				} else if (temp <= -10 && temp > -100) {
+					display.setCursor(223,64);
+					display.print(temp,1);
+				} else if (temp < 0 && temp > -10) {
+					display.setCursor(223,64);
+					display.print(temp,2);
+				} else if (temp < 10) {
+					display.setCursor(232,64);
+					display.print(temp,2);
+				} else if (temp >= 10 && temp < 100) {
+					display.setCursor(223,64);
+					display.print(temp,2);
+				} else if (temp >= 100 && temp < 1000) {
+					display.setCursor(223,64);
+					display.print(temp,1);
+				} else if (temp >= 1000) {
+					display.setCursor(232,64);
+					display.print(temp,0);
+				}
+			} else {
+				display.setCursor(232,64);
+				display.println("DISC");
+			}
+		}
+		this->oldTemperature = temp;
 	}
 
 	void displayAltitude(double alt) {
-		display.setCursor(30,128);
-		display.setTextSize(1);
-		display.print("ALTITUDE");
-		display.setTextSize(3);
-		display.setCursor(19,162);
-		display.print(29.5,1);
+		if (refresh) {
+			display.setCursor(30,128);
+			display.setTextSize(1);
+			display.print("ALTITUDE");
+		}
+		if (this->oldAltitude != alt) {
+			display.fillRect(0,162,107,21,BLACK);
+			display.setTextSize(3);
+			if (alt <= -1000) {
+				display.setCursor(10,162);
+				display.print(alt,0);
+			} else if (alt <= -100 && alt > -1000) {
+				display.setCursor(19,162);
+				display.print(alt,0);
+			} else if (alt <= -10 && alt > -100) {
+				display.setCursor(10,162);
+				display.print(alt,1);
+			} else if (alt < 0 && alt > -10) {
+				display.setCursor(10,162);
+				display.print(alt,2);
+			} else if (alt < 10) {
+				display.setCursor(19,162);
+				display.print(alt,2);
+			} else if (alt >= 10 && alt < 100) {
+				display.setCursor(10,162);
+				display.print(alt,2);
+			} else if (alt >= 100 && alt < 1000) {
+				display.setCursor(10,162);
+				display.print(alt,1);
+			} else if (alt >= 1000) {
+				display.setCursor(19,162);
+				display.print(alt,0);
+			}
+		}
+		this->oldAltitude = alt;
 	}
 
-	void displaySatellites(double sat) {
-		display.setCursor(131,128);
-		display.setTextSize(1);
-		display.print("SATELLITES");
-		display.setTextSize(3);
-		display.setCursor(153,162);
-		display.print((int)GPS.satellites);
+	void displaySatellites(int sat) {
+		if (refresh) {
+			display.setCursor(131,128);
+			display.setTextSize(1);
+			display.print("SATELLITES");
+		}
+
+		if (this->oldSatellites != sat) {
+			display.setTextSize(3);
+			display.fillRect(108,162,105,21,BLACK);
+			if (sat >= 0 && sat < 10) {
+				display.setCursor(153,162);
+				display.print(sat);
+			} else if (sat >= 10 && sat < 100) {
+				display.setCursor(144,162);
+				display.print(sat);
+			} else if (sat >= 100) {
+				display.setCursor(135,162);
+				display.print(sat);
+			}
+		}
+		this->oldSatellites = sat;
 	}
 
 	void displayLogsAndPoints(int log, int point) {
-		display.setCursor(258,128);
-		display.setTextSize(1);
-		display.print("LOG");
+		if (refresh) {
+			display.setCursor(258,128);
+			display.setTextSize(1);
+			display.print("LOG");
 
-		display.setCursor(249,158);
-		display.setTextSize(1);
-		display.print("POINTS");
+			display.setCursor(249,174);
+			display.setTextSize(1);
+			display.print("POINTS");
+
+			display.setTextSize(2);
+			if (0 <= log && log < 10) {
+				display.setCursor(262,142);
+			} else if (10 <= log && log < 100) {
+				display.setCursor(256,142);
+			} else if (100 <= log && log < 1000) {
+				display.setCursor(250,142);
+			} else if (1000 <= log && log < 10000) {
+				display.setCursor(244,142);
+			} else if (10000 <= log && log < 100000) {
+				display.setCursor(238,142);
+			} else if (100000 <= log && log < 1000000) {
+				display.setCursor(232,142);
+			} else if (1000000 <= log && log < 10000000) {
+				display.setCursor(226,142);
+			} else if (10000000 <= log && log < 100000000) {
+				display.setCursor(219,142);
+			}
+			display.print(log);
+		}
+
+		if (this->oldPoints != point) {
+			display.setTextSize(2);
+			display.fillRect(214,188,106,14,BLACK);
+
+			if (0 <= point && point < 10) {
+				display.setCursor(262,188);
+			} else if (10 <= point && point < 100) {
+				display.setCursor(256,188);
+			} else if (100 <= point && point < 1000) {
+				display.setCursor(250,188);
+			} else if (1000 <= point && point < 10000) {
+				display.setCursor(244,188);
+			} else if (10000 <= point && point < 100000) {
+				display.setCursor(238,188);
+			} else if (100000 <= point && point < 1000000) {
+				display.setCursor(232,188);
+			} else if (1000000 <= point && point < 10000000) {
+				display.setCursor(226,188);
+			} else if (10000000 <= point && point < 100000000) {
+				display.setCursor(219,188);
+			}
+
+			display.print(point);
+		}
+		this->oldPoints = point;
 	}
 
 	void displayOutlines() {
-		display.drawLine(107, 0, 107, 215, GREEN);
-		display.drawLine(213, 0, 213, 215, GREEN);
-		display.drawLine(0, 118, 320, 118, GREEN);
-		display.drawLine(0, 215, 320, 215, GREEN);
+		if (refresh) {
+			display.drawLine(107,20, 107, 215, GREEN);
+			display.drawLine(213,20, 213, 215, GREEN);
+			display.drawLine(0, 118, 320, 118, GREEN);
+			display.drawLine(0, 215, 320, 215, GREEN);
+		}
 	}
 
 	void displayGPSStatus(int fix, double lat, double lon) {
+		newGpsStatus.updateStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
 		display.setTextColor(GREEN);
 		display.setTextSize(2);
 
@@ -536,51 +710,53 @@ class SummaryScreen {
 				} else {
 					display.setCursor(71,221);
 					display.setTextColor(RED);
-					display.print("Satellites Lost");
+					display.print("Lost Satellites");
 				}
 			}
 
 		}
+		oldGpsStatus.updateStatus(newGpsStatus.fix, newGpsStatus.lat, newGpsStatus.lon);
 	}
 public:
 	void displayScreen() {
 		displayOutlines();
-		displaySpeed(30.43);
-		displayDirection(325.66);
-		displayTemperature(24.24);
-		displayAltitude(29.42);
-		displaySatellites(10);
-		displayLogsAndPoints(23,422);
+		displaySpeed(GPS.speed*1.852);
+		displayDirection(GPS.angle);
+		displayTemperature(currTemp);
+		displayAltitude(GPS.altitude);
+		displaySatellites(GPS.satellites);
+		displayLogsAndPoints(logs,trkpts);
+		displayGPSStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
+		refresh = false;
 	}
 };
 
 SummaryScreen summaryScreen;
-void displayGEN() {
-	newGpsStatus.updateStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
-	summaryScreen.displayScreen();
-	oldGpsStatus.updateStatus(newGpsStatus.fix, newGpsStatus.lat, newGpsStatus.lon);
-}
 
 void displayLogsAndPoints() {
-	display.fillRect(0,20,320,215, BLACK);
+	if (refresh)
+	{
+		display.fillRect(0,20,320,215, BLACK);
+		display.drawLine(0,130,320,130,GREEN);
+	}
+	refresh = false;
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
 	if(logfile.print("20") == 0) {
 		Serial.println("couldnt log to file!");
-		//display.clearDisplay();
-		//display.setTextColor(WHITE);
-		//display.setTextSize(3);
-		//display.setCursor(22,4);
-		//display.println("ERROR");
-		//display.setTextSize(1);
-		//display.setCursor(14,30);
-		//display.println("Couldn't write to");
-		//display.setCursor(9,40);
-		//display.println("file. Card may have");
-		//display.setCursor(28,50);
-		//display.println("been removed.");
-		//display.display();
+		display.fillScreen(BLACK);
+		display.setTextColor(RED);
+		display.setTextSize(5);
+		display.setCursor(88,71);
+		display.println("ERROR");
+		display.setTextSize(2);
+		display.setCursor(59,117);
+		display.println("Couldn't write to");
+		display.setCursor(47,136);
+		display.println("file. Card may have");
+		display.setCursor(83,155);
+		display.println("been removed.");
 		error(2);
 	}
 	logfile.print(GPS.year);
@@ -639,19 +815,18 @@ void logPointToFile(DeviceAddress tempSensor) {
 	logfile.print(GPS.altitude);
 	if(logfile.print(';') == 0) {
 		Serial.println("ERROR");
-		//display.clearDisplay();
-		//display.setTextColor(WHITE);
-		//display.setTextSize(3);
-		//display.setCursor(22,4);
-		//display.println("ERROR");
-		//display.setTextSize(1);
-		//display.setCursor(14,30);
-		//display.println("Couldn't write to");
-		//display.setCursor(9,40);
-		//display.println("file. Card may have");
-		//display.setCursor(28,50);
-		//display.println("been removed.");
-		//display.display();
+		display.fillScreen(BLACK);
+		display.setTextColor(RED);
+		display.setTextSize(5);
+		display.setCursor(88,71);
+		display.println("ERROR");
+		display.setTextSize(2);
+		display.setCursor(59,117);
+		display.println("Couldn't write to");
+		display.setCursor(47,136);
+		display.println("file. Card may have");
+		display.setCursor(83,155);
+		display.println("been removed.");
 		error(2);
 	}
 	if(sensors.getAddress(tempDeviceAddress, 0)) {
@@ -679,7 +854,8 @@ void loop() {
 			Serial.println("UPPER RIGHT");
 
 		} else if (p.x > 130 && p.y < 107) {
-			displayLogsAndPoints();
+			refresh = true;
+			currentScreen = 6;
 			Serial.println("LOWER RIGHT");
 
 		} else if (p.x > 20 && p.x < 130 && p.y > 160) {
@@ -720,11 +896,20 @@ void loop() {
 		}
 		// TODO: Refresh the display.
 		printTopBar();
-		displayGEN();
+		switch (currentScreen) {
+			case 0:
+				summaryScreen.displayScreen();
+				break;
+			case 6:
+				displayLogsAndPoints();
+		}
+
+
 
 		sensors.requestTemperatures();
+		double temp;
 		if (sensors.getAddress(tempDeviceAddress, 0)) {
-			double temp = sensors.getTempC(tempDeviceAddress);
+			temp = sensors.getTempC(tempDeviceAddress);
 			currTemp = temp;
 			if (temp < minTemp) minTemp = temp;
 			if (temp > maxTemp) maxTemp = temp;
@@ -749,6 +934,5 @@ void loop() {
 			logPointToFile(tempDeviceAddress);
 			trkpts++;
 		}
-		//display.display();
 	}
 }
