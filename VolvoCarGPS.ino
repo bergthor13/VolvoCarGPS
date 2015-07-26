@@ -10,7 +10,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Adafruit_FT6206.h>
-
+#include <math.h>
 
 // The control pins for the LCD can be assigned to any digital or
 // analog pins...but we'll use the analog pins as this allows us to
@@ -40,6 +40,8 @@
 
 #define chipSelect 10
 #define ledPin 13
+
+float totalDistance = 0;
 int screen = 0, secs = 0;
 double maxAlt = -3.4028235E+38, minAlt = 3.4028235E+38, maxSpeed = -3.4028235E+38, avgSpeed, maxTemp = -3.4028235E+38, minTemp = 3.4028235E+38, currTemp, currAlt, currSpeed;
 bool wasPressed = false;
@@ -60,6 +62,26 @@ unsigned int trkpts         = 0;
 unsigned int logs           = 0;
 int currentScreen           = 0;
 bool refresh = true;
+
+static const unsigned char PROGMEM volvo [] = {
+    B11111111, B11111111, B11000111, B11111111, B10000011, B11111111, B00000001, B11111111, B11111110, B00111111, B11111111, B11110001,B11111111, B10000011, B11111111, B11110000,
+    B11111111, B11111111, B11000111, B11111111, B10011111, B11111111, B11000001, B11111111, B11111110, B00111111, B11111111, B11110001,B11111111, B10011111, B11111111, B11111100,
+    B11111111, B11111111, B11000111, B11111111, B10111111, B11111111, B11110001, B11111111, B11111110, B00111111, B11111111, B11110001,B11111111, B10111111, B11111111, B11111110,
+    B11111111, B11111111, B11000111, B11111111, B11111111, B11111111, B11111001, B11111111, B11111110, B00111111, B11111111, B11110001,B11111111, B11111111, B11100001, B11111111,
+    B00000111, B11111110, B00000001, B11111000, B11111111, B10000111, B11111100, B00011111, B11100000, B00000001, B11111111, B10000000,B01111100, B01111111, B11000001, B11111111,
+    B00000111, B11111110, B00000011, B11110001, B11111111, B00000111, B11111100, B00011111, B11100000, B00000001, B11111111, B10000000,B11111100, B01111111, B11000000, B11111111,
+    B00000011, B11111111, B00000011, B11110001, B11111111, B00000011, B11111110, B00011111, B11100000, B00000000, B11111111, B11000000,B11111000, B01111111, B11000000, B11111111,
+    B00000011, B11111111, B00000111, B11100001, B11111111, B00000011, B11111110, B00011111, B11100000, B00000000, B11111111, B11000001,B11111000, B01111111, B11000000, B11111111,
+    B00000001, B11111111, B10000111, B11100001, B11111111, B00000011, B11111110, B00011111, B11100000, B00000000, B01111111, B11100001,B11110000, B01111111, B11000000, B11111111,
+    B00000001, B11111111, B11001111, B11000001, B11111111, B00000011, B11111110, B00011111, B11100000, B00011110, B01111111, B11110011,B11100000, B01111111, B11000000, B11111111,
+    B00000000, B11111111, B11001111, B10000001, B11111111, B00000011, B11111110, B00011111, B11100000, B00011110, B00111111, B11110011,B11100000, B01111111, B11000000, B11111111,
+    B00000000, B01111111, B11111111, B10000001, B11111111, B00000011, B11111110, B00011111, B11100000, B00011110, B00111111, B11111111,B11000000, B00111111, B11100001, B11111111,
+    B00000000, B01111111, B11111111, B00000000, B11111111, B10000111, B11111100, B00011111, B11100000, B00111110, B00011111, B11111111,B11000000, B00111111, B11110011, B11111110,
+    B00000000, B00111111, B11111111, B00000000, B11111111, B11001111, B11111000, B00011111, B11100000, B01111110, B00001111, B11111111,B10000000, B00011111, B11111111, B11111110,
+    B00000000, B00111111, B11111110, B00000000, B01111111, B11111111, B11111001, B11111111, B11111111, B11111110, B00001111, B11111111,B10000000, B00001111, B11111111, B11111000,
+    B00000000, B00011111, B11111110, B00000000, B00111111, B11111111, B11100001, B11111111, B11111111, B11111110, B00000111, B11111111,B00000000, B00000011, B11111111, B11100000,
+    B00000000, B00011111, B11111100, B00000000, B00001111, B11111111, B10000001, B11111111, B11111111, B11111110, B00000111, B11111111,B00000000, B00000000, B00000000, B00000000};
+
 
 void useInterrupt(boolean);
 
@@ -178,7 +200,7 @@ void setup() {
 	// connect to the GPS at the desired rate
 	display.println("Starting GPS...");
 	GPS.begin(9600);
-
+	delay(1000);
 	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
 	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
 	// uncomment this line to turn on only the "minimum recommended" data
@@ -450,7 +472,7 @@ class SummaryScreen {
 			display.setTextSize(1);
 			display.print("SPEED");
 		}
-		if (speed != this->oldSpeed) {
+		if (speed != this->oldSpeed || refresh) {
 			display.setTextSize(3);
 			display.fillRect(0,64,107,21,BLACK);
 			if (speed < 10) {
@@ -479,7 +501,7 @@ class SummaryScreen {
 		}
 
 		String dir = this->getDirection(angle);
-		if (this->oldDirection != dir) {
+		if (this->oldDirection != dir || refresh) {
 			display.setTextSize(3);
 			display.fillRect(144,64,33,21, BLACK);
 			if      (dir.length() == 1) display.setCursor(153,64);
@@ -489,7 +511,7 @@ class SummaryScreen {
 		this->oldDirection = dir;
 		display.setTextSize(2);
 
-		if (this->oldAngle != angle) {
+		if (this->oldAngle != angle || refresh) {
 			display.fillRect(125,95,70,14, BLACK);
 			if (angle >= 0 && angle < 10) {
 				display.setCursor(137,95);
@@ -512,7 +534,7 @@ class SummaryScreen {
 			display.print("TEMPERATURE");
 		}
 		display.setTextSize(3);
-		if (this->oldTemperature != temp) {
+		if (this->oldTemperature != temp || refresh) {
 			display.fillRect(214,64,107,21,BLACK);
 			if (currTemp != -3.4028235E+38) {
 				if (temp <= -1000) {
@@ -554,7 +576,7 @@ class SummaryScreen {
 			display.setTextSize(1);
 			display.print("ALTITUDE");
 		}
-		if (this->oldAltitude != alt) {
+		if (this->oldAltitude != alt || refresh) {
 			display.fillRect(0,162,107,21,BLACK);
 			display.setTextSize(3);
 			if (alt <= -1000) {
@@ -593,7 +615,7 @@ class SummaryScreen {
 			display.print("SATELLITES");
 		}
 
-		if (this->oldSatellites != sat) {
+		if (this->oldSatellites != sat || refresh) {
 			display.setTextSize(3);
 			display.fillRect(108,162,105,21,BLACK);
 			if (sat >= 0 && sat < 10) {
@@ -641,7 +663,7 @@ class SummaryScreen {
 			display.print(log);
 		}
 
-		if (this->oldPoints != point) {
+		if (this->oldPoints != point || refresh) {
 			display.setTextSize(2);
 			display.fillRect(214,188,106,14,BLACK);
 
@@ -686,7 +708,7 @@ class SummaryScreen {
 			display.setCursor(35,221);
 			gotFix = true;
 			if (newGpsStatus.lat != oldGpsStatus.lat ||
-				newGpsStatus.lon != oldGpsStatus.lon) {
+				newGpsStatus.lon != oldGpsStatus.lon || refresh) {
 
 				display.fillRect(35,221,250,16, BLACK);
 				display.print(GPS.lat);
@@ -700,7 +722,7 @@ class SummaryScreen {
 		}
 		else {
 
-			if (newGpsStatus.fix != oldGpsStatus.fix)
+			if (newGpsStatus.fix != oldGpsStatus.fix || refresh)
 			{
 				display.fillRect(0,216,320,25, BLACK);
 				if (!gotFix) {
@@ -732,12 +754,289 @@ public:
 };
 
 SummaryScreen summaryScreen;
+float oldMappedSpeed = NULL;
+float oldMappedMaxSpeed = NULL;
+float oldMappedAvgSpeed = 40;
+
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
+{
+ return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+int oldMaxSpeed = 999;
+void displaySpeedScreen() {
+	if (refresh)
+	{
+		display.setTextSize(1);
+		display.setTextColor(GREEN);
+		display.setCursor(26,24);
+		display.print("SPEED");
+
+				display.setTextSize(1);
+		display.setTextColor(GREEN);
+		display.setCursor(91,24);
+		display.print("AVG. SPEED");
+
+				display.setTextSize(1);
+		display.setTextColor(GREEN);
+		display.setCursor(174,24);
+		display.print("MAX SPEED");
+
+				display.setTextSize(1);
+		display.setTextColor(GREEN);
+		display.setCursor(257,24);
+		display.print("DISTANCE");
+
+		// display.setTextSize(1);
+		// display.setTextColor(GREEN);
+		// display.setCursor(5,23);
+		// display.print("SPEED");
+
+		// 		display.setTextSize(1);
+		// display.setTextColor(GREEN);
+		// display.setCursor(5,23);
+		// display.print("SPEED");
+		display.drawLine(0,60,340,60,GREEN);
+		display.drawLine(0,100,80,100,GREEN);
+		display.drawLine(240,100,320,100,GREEN);
+
+		display.drawLine(80,20,80,100,GREEN);
+		display.drawLine(160,20,160,60,GREEN);
+		display.drawLine(240,20,240,100,GREEN);
+
+		display.drawCircle(160,240,150,GREEN);
+		display.drawLine(21, 188, 33, 193, GREEN);
+		display.drawLine(47, 144, 57, 152, GREEN);
+		display.drawLine(86, 111, 92, 122, GREEN);
+		display.drawLine(134, 93, 137, 106, GREEN);
+		display.drawLine(186, 93, 183, 106, GREEN);
+		display.drawLine(234, 111, 227, 122, GREEN);
+		display.drawLine(273, 144, 263, 152, GREEN);
+		display.drawLine(299, 188, 287, 193, GREEN);
+
+		display.drawLine(14, 213, 22, 215, GREEN);
+		display.drawLine(32, 165, 39, 169, GREEN);
+		display.drawLine(65, 126, 70, 132, GREEN);
+		display.drawLine(109, 100, 112, 107, GREEN);
+		display.drawLine(160, 91, 160, 99, GREEN);
+		display.drawLine(211, 100, 208, 107, GREEN);
+		display.drawLine(255, 126, 250, 132, GREEN);
+		display.drawLine(288, 165, 281, 169, GREEN);
+		display.drawLine(306, 213, 298, 215, GREEN);
+
+		display.drawLine(12, 234, 15, 234, GREEN);
+		display.drawLine(12, 229, 15, 229, GREEN);
+		display.drawLine(13, 224, 16, 224, GREEN);
+		display.drawLine(13, 218, 16, 219, GREEN);
+		display.drawLine(15, 208, 18, 209, GREEN);
+		display.drawLine(16, 203, 19, 204, GREEN);
+		display.drawLine(18, 198, 21, 199, GREEN);
+		display.drawLine(19, 193, 22, 194, GREEN);
+		display.drawLine(23, 184, 26, 185, GREEN);
+		display.drawLine(25, 179, 28, 180, GREEN);
+		display.drawLine(27, 174, 30, 175, GREEN);
+		display.drawLine(29, 170, 32, 171, GREEN);
+		display.drawLine(34, 161, 37, 162, GREEN);
+		display.drawLine(37, 156, 40, 158, GREEN);
+		display.drawLine(40, 152, 43, 154, GREEN);
+		display.drawLine(43, 148, 46, 150, GREEN);
+		display.drawLine(50, 140, 52, 142, GREEN);
+		display.drawLine(54, 136, 56, 138, GREEN);
+		display.drawLine(57, 133, 59, 135, GREEN);
+		display.drawLine(61, 129, 63, 131, GREEN);
+		display.drawLine(69, 122, 71, 125, GREEN);
+		display.drawLine(73, 119, 75, 122, GREEN);
+		display.drawLine(77, 116, 79, 119, GREEN);
+		display.drawLine(82, 113, 83, 116, GREEN);
+		display.drawLine(91, 108, 92, 111, GREEN);
+		display.drawLine(95, 106, 96, 109, GREEN);
+		display.drawLine(100, 104, 101, 107, GREEN);
+		display.drawLine(105, 102, 106, 105, GREEN);
+		display.drawLine(114, 98, 115, 101, GREEN);
+		display.drawLine(119, 97, 120, 100, GREEN);
+		display.drawLine(124, 95, 125, 98, GREEN);
+		display.drawLine(129, 94, 130, 97, GREEN);
+		display.drawLine(139, 92, 140, 95, GREEN);
+		display.drawLine(145, 92, 145, 95, GREEN);
+		display.drawLine(150, 91, 150, 94, GREEN);
+		display.drawLine(155, 91, 155, 94, GREEN);
+		display.drawLine(165, 91, 165, 94, GREEN);
+		display.drawLine(170, 91, 170, 94, GREEN);
+		display.drawLine(175, 92, 175, 95, GREEN);
+		display.drawLine(181, 92, 180, 95, GREEN);
+		display.drawLine(191, 94, 190, 97, GREEN);
+		display.drawLine(196, 95, 195, 98, GREEN);
+		display.drawLine(201, 97, 200, 100, GREEN);
+		display.drawLine(206, 98, 205, 101, GREEN);
+		display.drawLine(215, 102, 214, 105, GREEN);
+		display.drawLine(220, 104, 219, 107, GREEN);
+		display.drawLine(225, 106, 224, 109, GREEN);
+		display.drawLine(229, 108, 228, 111, GREEN);
+		display.drawLine(238, 113, 237, 116, GREEN);
+		display.drawLine(243, 116, 241, 119, GREEN);
+		display.drawLine(247, 119, 245, 122, GREEN);
+		display.drawLine(251, 122, 249, 125, GREEN);
+		display.drawLine(259, 129, 257, 131, GREEN);
+		display.drawLine(263, 133, 261, 135, GREEN);
+		display.drawLine(266, 136, 264, 138, GREEN);
+		display.drawLine(270, 140, 268, 142, GREEN);
+		display.drawLine(277, 148, 274, 150, GREEN);
+		display.drawLine(280, 152, 277, 154, GREEN);
+		display.drawLine(283, 156, 280, 158, GREEN);
+		display.drawLine(286, 161, 283, 162, GREEN);
+		display.drawLine(291, 170, 288, 171, GREEN);
+		display.drawLine(293, 174, 290, 175, GREEN);
+		display.drawLine(295, 179, 292, 180, GREEN);
+		display.drawLine(297, 184, 294, 185, GREEN);
+		display.drawLine(301, 193, 298, 194, GREEN);
+		display.drawLine(302, 198, 299, 199, GREEN);
+		display.drawLine(304, 203, 301, 204, GREEN);
+		display.drawLine(305, 208, 302, 209, GREEN);
+		display.drawLine(307, 218, 304, 219, GREEN);
+		display.drawLine(307, 224, 304, 224, GREEN);
+		display.drawLine(308, 229, 305, 229, GREEN);
+		display.drawLine(308, 234, 305, 234, GREEN);
+	}
+	display.setTextColor(GREEN);
+	display.setCursor(17,38);
+	display.setTextSize(2);
+	display.fillRect(17,38,46,14,BLACK);
+	display.print(GPS.speed*1.852,2);
+
+	display.setCursor(97,38);
+	display.setTextSize(2);
+	display.fillRect(97,38,46,14,BLACK);
+	display.print(avgSpeed,2);
+
+	display.setCursor(177,38);
+	display.setTextSize(2);
+	display.fillRect(177,38,46,14,BLACK);
+	display.print(maxSpeed,2);
+
+	display.setCursor(257,38);
+	display.setTextSize(2);
+	display.fillRect(257,38,46,14,BLACK);
+	display.print(totalDistance,2);
+
+	float mappedSpeed    = mapfloat(GPS.speed*1.852, 0.0, 90.0, 180.0, 360.0);
+	float mappedMaxSpeed = mapfloat(maxSpeed, 0.0, 90.0, 180.0, 360.0);
+	float mappedAvgSpeed = mapfloat(avgSpeed, 0.0, 90.0, 180.0, 360.0);
+	if(mappedSpeed < 180) mappedSpeed = 180;
+
+	display.setTextSize(1);
+	display.setTextColor(GREEN);
+
+	display.setCursor(40, 194); display.print(10);
+	display.setCursor(62, 157); display.print(20);
+	display.setCursor(92, 128); display.print(30);
+	display.setCursor(133, 113); display.print(40);
+	display.setCursor(176, 113); display.print(50);
+	display.setCursor(217, 128); display.print(60);
+	display.setCursor(247, 157); display.print(70);
+	display.setCursor(269, 194); display.print(80);
+	display.drawLine(160,
+	                 239,
+	                 (160 + (130 * cos(oldMappedSpeed * 1000.0 / 57296.0))),
+	                 (239 + (130 * sin(oldMappedSpeed * 1000.0 / 57296.0))),
+	                 BLACK);
+	display.drawLine(160,239, (160 + (130 * cos(mappedSpeed * 1000.0 / 57296.0))), (239 + (130 * sin(mappedSpeed * 1000.0 / 57296.0))), RED);
+
+	display.drawLine((160 + (160 * cos(oldMappedMaxSpeed * 1000.0 / 57296.0))),
+	                 (239 + (160 * sin(oldMappedMaxSpeed * 1000.0 / 57296.0))),
+	                 (160 + (151 * cos(oldMappedMaxSpeed * 1000.0 / 57296.0))),
+	                 (239 + (151 * sin(oldMappedMaxSpeed * 1000.0 / 57296.0))),
+	                 BLACK);
+	display.drawLine((160 + (160 * cos(mappedMaxSpeed * 1000.0 / 57296.0))),
+	                 (239 + (160 * sin(mappedMaxSpeed * 1000.0 / 57296.0))),
+	                 (160 + (151 * cos(mappedMaxSpeed * 1000.0 / 57296.0))),
+	                 (239 + (151 * sin(mappedMaxSpeed * 1000.0 / 57296.0))),
+	                 RED);
+
+	display.drawLine((160 + (160 * cos(oldMappedAvgSpeed * 1000.0 / 57296.0))),
+	                 (239 + (160 * sin(oldMappedAvgSpeed * 1000.0 / 57296.0))),
+	                 (160 + (151 * cos(oldMappedAvgSpeed * 1000.0 / 57296.0))),
+	                 (239 + (151 * sin(oldMappedAvgSpeed * 1000.0 / 57296.0))),
+	                 BLACK);
+	display.drawLine((160 + (160 * cos(mappedAvgSpeed * 1000.0 / 57296.0))),
+	                 (239 + (160 * sin(mappedAvgSpeed * 1000.0 / 57296.0))),
+	                 (160 + (151 * cos(mappedAvgSpeed * 1000.0 / 57296.0))),
+	                 (239 + (151 * sin(mappedAvgSpeed * 1000.0 / 57296.0))),
+	                 BLUE);
+
+	oldMappedMaxSpeed = mappedMaxSpeed;
+	oldMappedAvgSpeed = mappedAvgSpeed;
+	display.drawBitmap(96, 170, volvo, 128, 17, BLUE);
+	oldMappedSpeed = mappedSpeed;
+	refresh = false;
+}
+
+void displayDirectionScreen() {
+	if (refresh)
+	{
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Direction:");
+		display.drawCircle(160,130,100,GREEN);
+		display.drawLine(259,  130, 250, 130, GREEN);
+		display.drawLine(230,  200, 224, 194, GREEN);
+		display.drawLine(160,  229, 160, 220, GREEN);
+		display.drawLine(90,   200, 96,  194, GREEN);
+		display.drawLine(61,   130, 70,  130, GREEN);
+		display.drawLine(90,   60,  96,  66,  GREEN);
+		display.drawLine(160,  31,  160, 40,  GREEN);
+		display.drawLine(230,  60,  224, 66,  GREEN);
+		display.drawLine(259,  130, 250, 130, GREEN);
+
+		display.drawLine(160,
+		                 130,
+		                 (160 + (90 * cos((GPS.angle * 1000.0 / 57296.0)-(PI/2)))),
+		                 (130 + (90 * sin((GPS.angle * 1000.0 / 57296.0)-(PI/2)))),
+		                 RED);
+	}
+	refresh = false;
+}
+
+void displayTemperatureScreen() {
+	if (refresh)
+	{
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Temperature:\nWork in progress...");
+	}
+	refresh = false;
+}
+
+void displayAltitudeScreen() {
+	if (refresh)
+	{
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Altitude:\nWork in progress...");
+	}
+	refresh = false;
+}
+
+void displaySatellitesScreen() {
+	if (refresh)
+	{
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Satellites:\nWork in progress...");
+	}
+	refresh = false;
+}
 
 void displayLogsAndPoints() {
 	if (refresh)
 	{
-		display.fillRect(0,20,320,215, BLACK);
 		display.drawLine(0,130,320,130,GREEN);
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Time and position:\nWork in progress...");
 	}
 	refresh = false;
 }
@@ -840,30 +1139,66 @@ void logPointToFile(DeviceAddress tempSensor) {
 	}
 	logfile.flush();
 }
+double distanceBetweenPoints(double lat1, double lat2, double lon1, double lon2) {
+    int R = 6371; // km
+    double dLat = (lat2-lat1)*PI/180;
+    double dLon = (lon2-lon1)*PI/180;
+    lat1 = lat1*PI/180;
+    lat2 = lat2*PI/180;
+
+    double a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(lat1) * cos(lat2);
+    double c = 2 * atan2(sqrt(a), sqrt(1-a));
+    double d = R * c;
+
+    return d;
+}
+
 bool hasBeenPressed = false;
+double oldLat = NULL, oldLon = NULL;
 void loop() {
 	if (ts.touched() && !hasBeenPressed) {
 		hasBeenPressed = true;
-		//Serial.print("SCREEN TOUCHED AT: ");
 
 		TS_Point p = ts.getPoint();
-		// Serial.print(p.x);
-		// Serial.print(", ");
-		// Serial.println(p.y);
-		if (p.x > 20 && p.x < 130 && p.y < 160) {
-			Serial.println("UPPER RIGHT");
+		Serial.print("(");
+		Serial.print(p.x);
+		Serial.print(", ");
+		Serial.print(p.y);
+		Serial.println(")");
 
-		} else if (p.x > 130 && p.y < 107) {
+		if (currentScreen != 0)
+		{
+			display.fillRect(0,20,320,240, BLACK);
+			currentScreen = 0;
 			refresh = true;
-			currentScreen = 6;
-			Serial.println("LOWER RIGHT");
-
-		} else if (p.x > 20 && p.x < 130 && p.y > 160) {
-			Serial.println("UPPER LEFT");
-
-		} else if (p.x > 130 && p.y > 160) {
-			Serial.println("LOWER LEFT");
+		} else {
+			if (20 < p.x && p.x <= 118 && 320 >= p.y && p.y > 213) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 1;
+				refresh = true;
+			} else if (20 < p.x && p.x <= 118 && 213 >= p.y && p.y > 107) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 2;
+				refresh = true;
+			} else if (20 < p.x && p.x <= 118 && 107 >= p.y && p.y >= 0) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 3;
+				refresh = true;
+			} else if (118 < p.x && p.x <= 215 && 320 >= p.y && p.y > 213) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 4;
+				refresh = true;
+			} else if (118 < p.x && p.x <= 215 && 213 >= p.y && p.y > 107) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 5;
+				refresh = true;
+			} else if (118 < p.x && p.x <= 215 && 107 >= p.y && p.y > 0) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 6;
+				refresh = true;
+			}
 		}
+
 	} else if (!ts.touched()) {
 		hasBeenPressed = false;
 	}
@@ -900,8 +1235,24 @@ void loop() {
 			case 0:
 				summaryScreen.displayScreen();
 				break;
+			case 1:
+				displaySpeedScreen();
+				break;
+			case 2:
+				displayDirectionScreen();
+				break;
+			case 3:
+				displayTemperatureScreen();
+				break;
+			case 4:
+				displayAltitudeScreen();
+				break;
+			case 5:
+				displaySatellitesScreen();
+				break;
 			case 6:
 				displayLogsAndPoints();
+				break;
 		}
 
 
@@ -932,6 +1283,14 @@ void loop() {
 		// Rad. lets log it!
 		if (GPS.fix && strstr(stringptr, "RMC")){
 			logPointToFile(tempDeviceAddress);
+			if(oldLat != NULL && oldLon != NULL) {
+				totalDistance += distanceBetweenPoints(oldLat,GPS.latitudeDegrees,oldLon,GPS.longitudeDegrees);
+				// This will do for now.
+				avgSpeed = totalDistance/trkpts*60*60;
+			}
+			oldLat = GPS.latitudeDegrees;
+			oldLon = GPS.longitudeDegrees;
+
 			trkpts++;
 		}
 	}
