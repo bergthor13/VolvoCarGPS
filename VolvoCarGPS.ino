@@ -25,7 +25,7 @@
 #define	BLACK   0x0000
 #define	BLUE    0x001F
 #define	RED     0xF800
-#define	GREEN   0x0780
+#define	GREEN   0xDFEF
 #define CYAN    0x07FF
 #define MAGENTA 0xF81F
 #define YELLOW  0xFFE0
