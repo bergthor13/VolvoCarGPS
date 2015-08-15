@@ -37,6 +37,7 @@
 #define OLED_RESET 4
 #define ONE_WIRE_BUS 31
 #define TEMPERATURE_PRECISION 11
+#define BACKLIGHT_PIN 44
 
 #define chipSelect 10
 #define ledPin 13
@@ -115,10 +116,11 @@ void error(uint8_t errno) {
 }
 
 void setup() {
+	analogWrite(BACKLIGHT_PIN,255);
 	Serial.begin(115200);
 	display.reset();
 	display.begin(display.readID());
-	display.setRotation(3);
+	display.setRotation(1);
 	Serial.println("Testing");
 	display.fillScreen(BLACK);
 	//display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
