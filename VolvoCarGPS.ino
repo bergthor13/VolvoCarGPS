@@ -116,7 +116,7 @@ void error(uint8_t errno) {
 }
 
 void setup() {
-	analogWrite(BACKLIGHT_PIN,255);
+	//analogWrite(BACKLIGHT_PIN,255);
 	Serial.begin(115200);
 	display.reset();
 	display.begin(display.readID());
@@ -1157,6 +1157,15 @@ double distanceBetweenPoints(double lat1, double lat2, double lon1, double lon2)
 
 bool hasBeenPressed = false;
 double oldLat = NULL, oldLon = NULL;
+
+bool tappedSpeed(int x, int y) { return 118 < x && x <= 215 && 107 >= y && y > 0;   }
+bool tappedDir  (int x, int y) { return 118 < x && x <= 215 && 213 >= y && y > 107; }
+bool tappedTemp (int x, int y) { return 118 < x && x <= 215 && 320 >= y && y > 213; }
+
+bool tappedAlt  (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >= 0;   }
+bool tappedSats (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
+bool tappedLogs (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
+
 void loop() {
 	if (ts.touched() && !hasBeenPressed) {
 		hasBeenPressed = true;
@@ -1174,27 +1183,27 @@ void loop() {
 			currentScreen = 0;
 			refresh = true;
 		} else {
-			if (20 < p.x && p.x <= 118 && 320 >= p.y && p.y > 213) {
+			if (tappedSpeed(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 1;
 				refresh = true;
-			} else if (20 < p.x && p.x <= 118 && 213 >= p.y && p.y > 107) {
+			} else if (tappedDir(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 2;
 				refresh = true;
-			} else if (20 < p.x && p.x <= 118 && 107 >= p.y && p.y >= 0) {
+			} else if (tappedTemp(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 3;
 				refresh = true;
-			} else if (118 < p.x && p.x <= 215 && 320 >= p.y && p.y > 213) {
+			} else if (tappedAlt(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 4;
 				refresh = true;
-			} else if (118 < p.x && p.x <= 215 && 213 >= p.y && p.y > 107) {
+			} else if (tappedSats(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 5;
 				refresh = true;
-			} else if (118 < p.x && p.x <= 215 && 107 >= p.y && p.y > 0) {
+			} else if (tappedLogs(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 6;
 				refresh = true;
