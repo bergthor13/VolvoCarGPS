@@ -468,7 +468,7 @@ GPS_Status oldGpsStatus(-1, 0, 0);
 
 class SummaryScreen {
 
-	double oldSpeed, oldAngle, oldTemperature, oldAltitude;
+	double oldSpeed, oldAngle, oldTemperature, oldAltitude, oldAcceleration;
 	int oldPoints = -1, oldSatellites;
 	String oldDirection;
 
@@ -483,20 +483,25 @@ class SummaryScreen {
 		if(angle >= 202 && angle < 247)  return "SW";
 		if(angle >= 292 && angle < 337)  return "NW";
 	}
-//void printCenteredText(String text, int textSize, int color, int areaWidth, int offset, int y) {
+
 	void displaySpeed(float speed) {
 		if (refresh) {
 			printCenteredText("SPEED", 1, GREEN, 107, 0, 30);
 		}
-
+		double acceleration;
 		if (speed != this->oldSpeed || refresh) {
 			if (speed < 10)                        printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
 			else if (speed >= 10 && speed < 100)   printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
 			else if (speed >= 100 && speed < 1000) printCenteredText(String(speed, 1), 3, GREEN, 107, 0, 64);
 			else if (speed >= 1000)                printCenteredText(String(speed, 0), 3, GREEN, 107, 0, 64);
 
+			acceleration = speed - this->oldSpeed;
+			printCenteredText(String(acceleration, 2), 2, GREEN, 107, 0, 95);
 		}
+
 		this->oldSpeed = speed;
+		this->oldAcceleration = acceleration;
+
 	}
 
 	void displayDirection(double angle) {
@@ -544,33 +549,10 @@ class SummaryScreen {
 			display.print("ALTITUDE");
 		}
 		if (this->oldAltitude != alt || refresh) {
-			display.fillRect(0,162,107,21,BLACK);
-			display.setTextSize(3);
-			if (alt <= -1000) {
-				display.setCursor(10,162);
-				display.print(alt,0);
-			} else if (alt <= -100 && alt > -1000) {
-				display.setCursor(19,162);
-				display.print(alt,0);
-			} else if (alt <= -10 && alt > -100) {
-				display.setCursor(10,162);
-				display.print(alt,1);
-			} else if (alt < 0 && alt > -10) {
-				display.setCursor(10,162);
-				display.print(alt,2);
-			} else if (alt < 10) {
-				display.setCursor(19,162);
-				display.print(alt,2);
-			} else if (alt >= 10 && alt < 100) {
-				display.setCursor(10,162);
-				display.print(alt,2);
-			} else if (alt >= 100 && alt < 1000) {
-				display.setCursor(10,162);
-				display.print(alt,1);
-			} else if (alt >= 1000) {
-				display.setCursor(19,162);
-				display.print(alt,0);
-			}
+			if      (alt <= -100 || alt >= 1000)   printCenteredText(String(alt, 0), 3, GREEN, 107, 214, 162);
+			else if ((alt <= -10 && alt > -100) ||
+			         (alt >= 100 && alt < 1000))   printCenteredText(String(alt, 1), 3, GREEN, 107, 0, 162);
+			else if (-10 < alt && alt < 100)       printCenteredText(String(alt, 2), 3, GREEN, 107, 0, 162);
 		}
 		this->oldAltitude = alt;
 	}
@@ -578,81 +560,24 @@ class SummaryScreen {
 	void displaySatellites(int sat) {
 		if (refresh) {
 			display.setCursor(131,128);
-			display.setTextSize(1);
-			display.print("SATELLITES");
+			printCenteredText("SATELLITES", 1, GREEN, 107, 107, 128);
 		}
 
 		if (this->oldSatellites != sat || refresh) {
-			display.setTextSize(3);
-			display.fillRect(108,162,105,21,BLACK);
-			if (sat >= 0 && sat < 10) {
-				display.setCursor(153,162);
-				display.print(sat);
-			} else if (sat >= 10 && sat < 100) {
-				display.setCursor(144,162);
-				display.print(sat);
-			} else if (sat >= 100) {
-				display.setCursor(135,162);
-				display.print(sat);
-			}
+			printCenteredText(String(sat), 3, GREEN, 107, 107, 162);
 		}
 		this->oldSatellites = sat;
 	}
 
-	void displayLogsAndPoints(int log, int point) {
+	void displayLogsAndPoints(int logNumber, int point) {
 		if (refresh) {
-			display.setCursor(258,128);
-			display.setTextSize(1);
-			display.print("LOG");
-
-			display.setCursor(249,174);
-			display.setTextSize(1);
-			display.print("POINTS");
-
-			display.setTextSize(2);
-			if (0 <= log && log < 10) {
-				display.setCursor(262,142);
-			} else if (10 <= log && log < 100) {
-				display.setCursor(256,142);
-			} else if (100 <= log && log < 1000) {
-				display.setCursor(250,142);
-			} else if (1000 <= log && log < 10000) {
-				display.setCursor(244,142);
-			} else if (10000 <= log && log < 100000) {
-				display.setCursor(238,142);
-			} else if (100000 <= log && log < 1000000) {
-				display.setCursor(232,142);
-			} else if (1000000 <= log && log < 10000000) {
-				display.setCursor(226,142);
-			} else if (10000000 <= log && log < 100000000) {
-				display.setCursor(219,142);
-			}
-			display.print(log);
+			printCenteredText("LOG", 1, GREEN, 107, 214, 128);
+			printCenteredText("POINTS", 1, GREEN, 107, 214, 174);
+			printCenteredText(String(logNumber), 2, GREEN, 107, 214, 142);
 		}
 
 		if (this->oldPoints != point || refresh) {
-			display.setTextSize(2);
-			display.fillRect(214,188,106,14,BLACK);
-
-			if (0 <= point && point < 10) {
-				display.setCursor(262,188);
-			} else if (10 <= point && point < 100) {
-				display.setCursor(256,188);
-			} else if (100 <= point && point < 1000) {
-				display.setCursor(250,188);
-			} else if (1000 <= point && point < 10000) {
-				display.setCursor(244,188);
-			} else if (10000 <= point && point < 100000) {
-				display.setCursor(238,188);
-			} else if (100000 <= point && point < 1000000) {
-				display.setCursor(232,188);
-			} else if (1000000 <= point && point < 10000000) {
-				display.setCursor(226,188);
-			} else if (10000000 <= point && point < 100000000) {
-				display.setCursor(219,188);
-			}
-
-			display.print(point);
+			printCenteredText(String(point), 2, GREEN, 107, 214, 188);
 		}
 		this->oldPoints = point;
 	}
@@ -706,7 +631,7 @@ class SummaryScreen {
 		}
 		oldGpsStatus.updateStatus(newGpsStatus.fix, newGpsStatus.lat, newGpsStatus.lon);
 	}
-public:
+	public:
 	void displayScreen() {
 		displayOutlines();
 		displaySpeed(GPS.speed*1.852);
@@ -730,38 +655,20 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 int oldMaxSpeed = 999;
+
+//TODO: Refactor this into a class like SummaryScreen.
 void displaySpeedScreen() {
 	if (refresh)
 	{
-		display.setTextSize(1);
-		display.setTextColor(GREEN);
-		display.setCursor(26,24);
-		display.print("SPEED");
+		// Print out the data cells titles
+		printCenteredText("SPEED", 1, GREEN, 80, 0, 24);
+		printCenteredText("AVG. SPEED", 1, GREEN, 79, 80, 24);
+		printCenteredText("MAX SPEED", 1, GREEN, 79, 160, 24);
+		printCenteredText("DISTANCE", 1, GREEN, 80, 240, 24);
 
-				display.setTextSize(1);
-		display.setTextColor(GREEN);
-		display.setCursor(91,24);
-		display.print("AVG. SPEED");
+		printCenteredText("ALTITUDE", 1, GREEN, 80, 0, 65);
+		printCenteredText("SATELLITES", 1, GREEN, 80, 240, 65);
 
-				display.setTextSize(1);
-		display.setTextColor(GREEN);
-		display.setCursor(174,24);
-		display.print("MAX SPEED");
-
-				display.setTextSize(1);
-		display.setTextColor(GREEN);
-		display.setCursor(257,24);
-		display.print("DISTANCE");
-
-		// display.setTextSize(1);
-		// display.setTextColor(GREEN);
-		// display.setCursor(5,23);
-		// display.print("SPEED");
-
-		// 		display.setTextSize(1);
-		// display.setTextColor(GREEN);
-		// display.setCursor(5,23);
-		// display.print("SPEED");
 		display.drawLine(0,60,340,60,GREEN);
 		display.drawLine(0,100,80,100,GREEN);
 		display.drawLine(240,100,320,100,GREEN);
@@ -863,26 +770,15 @@ void displaySpeedScreen() {
 		display.drawLine(308, 229, 305, 229, GREEN);
 		display.drawLine(308, 234, 305, 234, GREEN);
 	}
-	display.setTextColor(GREEN);
-	display.setCursor(17,38);
-	display.setTextSize(2);
-	display.fillRect(17,38,46,14,BLACK);
-	display.print(GPS.speed*1.852,2);
 
-	display.setCursor(97,38);
-	display.setTextSize(2);
-	display.fillRect(97,38,46,14,BLACK);
-	display.print(avgSpeed,2);
+	// Print out the data cells data.
+	printCenteredText(String(GPS.speed*1.852,2), 2, GREEN, 80, 0, 38);
+	printCenteredText(String(avgSpeed,2), 2, GREEN, 80, 80, 38);
+	printCenteredText(String(maxSpeed,2), 2, GREEN, 80, 160, 38);
+	printCenteredText(String(totalDistance,2), 2, GREEN, 80, 240, 38);
 
-	display.setCursor(177,38);
-	display.setTextSize(2);
-	display.fillRect(177,38,46,14,BLACK);
-	display.print(maxSpeed,2);
-
-	display.setCursor(257,38);
-	display.setTextSize(2);
-	display.fillRect(257,38,46,14,BLACK);
-	display.print(totalDistance,2);
+	printCenteredText(String(GPS.altitude,2), 2, GREEN, 80, 0, 79);
+	printCenteredText(String(GPS.satellites), 2, GREEN, 80, 240, 79);
 
 	float mappedSpeed    = mapfloat(GPS.speed*1.852, 0.0, 90.0, 180.0, 360.0);
 	float mappedMaxSpeed = mapfloat(maxSpeed, 0.0, 90.0, 180.0, 360.0);
@@ -1129,6 +1025,8 @@ bool tappedTemp (int x, int y) { return 118 < x && x <= 215 && 320 >= y && y > 2
 bool tappedAlt  (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >= 0;   }
 bool tappedSats (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
 bool tappedLogs (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
+
+bool tappedTime (int x, int y) { return false }
 
 void loop() {
 	if (ts.touched() && !hasBeenPressed) {
