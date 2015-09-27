@@ -11,7 +11,7 @@
 #include <DallasTemperature.h>
 #include <Adafruit_FT6206.h>
 #include <math.h>
-
+struct GPS_Status;
 // The control pins for the LCD can be assigned to any digital or
 // analog pins...but we'll use the analog pins as this allows us to
 // double up the pins with the touch screen (see the TFT paint example).
@@ -41,6 +41,9 @@
 
 #define chipSelect 10
 #define ledPin 13
+
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
 
 float totalDistance = 0;
 int screen = 0, secs = 0;
@@ -121,9 +124,9 @@ void setup() {
 	display.reset();
 	display.begin(display.readID());
 	display.setRotation(1);
-	Serial.println("Testing");
 	display.fillScreen(BLACK);
 	//display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
+ display.setTextSize(2);
 	display.println("Initializing...");
 	Serial. begin(115200);
 	sensors.begin();
@@ -247,6 +250,17 @@ void useInterrupt(boolean v) {
 		usingInterrupt = false;
 	}
 }
+//
+
+void printCenteredText(String text, int textSize, int color, int areaWidth, int offset, int y) {
+  int x = (areaWidth-(text.length()*textSize*5+textSize*(text.length()-1)))/2+offset;
+  display.setTextSize(textSize);
+  display.setCursor(x,y);
+  display.setTextColor(color);
+  display.fillRect(offset+1,y,areaWidth-2,textSize*7,BLACK);
+  display.print(text);
+}
+
 // Printers.
 
 void printAngle() {
@@ -256,27 +270,29 @@ void printAngle() {
 }
 
 struct DisplayDate {
-	int sec, min, hr, day, mth, yr;
+	int sec, min, hr, day, mth, yr, mil;
 
-	DisplayDate(int yr, int mth, int day, int hr, int min, int sec) {
+	DisplayDate(int yr, int mth, int day, int hr, int min, int sec, int mil) {
 		this->yr  = yr;
 		this->mth = mth;
 		this->day = day;
 		this->hr  = hr;
 		this->min = min;
 		this->sec = sec;
+    this->mil = mil;
 	}
-	void updateDate(int yr, int mth, int day, int hr, int min, int sec) {
+	void updateDate(int yr, int mth, int day, int hr, int min, int sec, int mil) {
 		this->yr  = yr;
 		this->mth = mth;
 		this->day = day;
 		this->hr  = hr;
 		this->min = min;
 		this->sec = sec;
+    this->mil = mil;
 	}
 };
-DisplayDate newDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds);
-DisplayDate oldDate(0,0,0,0,0,0);
+DisplayDate newDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+DisplayDate oldDate(0,0,0,0,0,0,0);
 void printDate() {
 	if(GPS.day < 10) {
 		display.print("0");
@@ -333,7 +349,7 @@ void printTime(){
 }
 int asdf = 0;
 void printTopBar() {
-	newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds);
+	newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
 	display.setTextColor(BLACK);
 	display.setTextSize(2);
 	if (asdf == 0)
@@ -412,38 +428,39 @@ void printTopBar() {
 			}
 		}
 
-		if (oldDate.sec != newDate.sec)
+		if (oldDate.sec != newDate.sec || oldDate.mil != newDate.mil)
 		{
 			display.fillRect(291,3,10,14, GREEN);
 			display.fillRect(303,3,10,14, GREEN);
 			display.setCursor(291,3);
-			if(GPS.seconds < 10){
+      int addSecs = GPS.seconds;
+      if (GPS.milliseconds >= 500) addSecs++;
+			if (addSecs < 10){
 				display.print("0");
-				display.print(GPS.seconds);
+				display.print(addSecs);
 			} else {
-				display.print(GPS.seconds);
+				display.print(addSecs);
 			}
 		}
 
 	}
 
-	oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec);
+	oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec, newDate.mil);
 }
-
 struct GPS_Status
 {
-	int fix;
-	double lat, lon;
-	GPS_Status(int fix, double lat, double lon) {
-		this->fix = fix;
-		this->lat = lat;
-		this->lon = lon;
-	}
-	void updateStatus(int fix, double lat, double lon) {
-		this->fix = fix;
-		this->lat = lat;
-		this->lon = lon;
-	}
+  int fix;
+  double lat, lon;
+  GPS_Status(int fix, double lat, double lon) {
+    this->fix = fix;
+    this->lat = lat;
+    this->lon = lon;
+  }
+  void updateStatus(int fix, double lat, double lon) {
+    this->fix = fix;
+    this->lat = lat;
+    this->lon = lon;
+  }
 };
 
 GPS_Status newGpsStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
@@ -466,30 +483,18 @@ class SummaryScreen {
 		if(angle >= 202 && angle < 247)  return "SW";
 		if(angle >= 292 && angle < 337)  return "NW";
 	}
-
-	void displaySpeed(double speed) {
-		display.setTextColor(GREEN);
+//void printCenteredText(String text, int textSize, int color, int areaWidth, int offset, int y) {
+	void displaySpeed(float speed) {
 		if (refresh) {
-			display.setCursor(39,30);
-			display.setTextSize(1);
-			display.print("SPEED");
+			printCenteredText("SPEED", 1, GREEN, 107, 0, 30);
 		}
+
 		if (speed != this->oldSpeed || refresh) {
-			display.setTextSize(3);
-			display.fillRect(0,64,107,21,BLACK);
-			if (speed < 10) {
-				display.setCursor(19,64);
-				display.print(speed,2);
-			} else if (speed >= 10 && speed < 100) {
-				display.setCursor(10,64);
-				display.print(speed,2);
-			} else if (speed >= 100 && speed < 1000) {
-				display.setCursor(10,64);
-				display.print(speed,1);
-			} else if (speed >= 1000) {
-				display.setCursor(19,64);
-				display.print(speed,0);
-			}
+			if (speed < 10)                        printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
+			else if (speed >= 10 && speed < 100)   printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
+			else if (speed >= 100 && speed < 1000) printCenteredText(String(speed, 1), 3, GREEN, 107, 0, 64);
+			else if (speed >= 1000)                printCenteredText(String(speed, 0), 3, GREEN, 107, 0, 64);
+
 		}
 		this->oldSpeed = speed;
 	}
@@ -497,76 +502,36 @@ class SummaryScreen {
 	void displayDirection(double angle) {
 
 		if (refresh) {
-				display.setCursor(134,30);
-				display.setTextSize(1);
-				display.print("DIRECTION");
+			printCenteredText("DIRECTION", 1, GREEN, 107, 107, 30);
 		}
 
 		String dir = this->getDirection(angle);
+
 		if (this->oldDirection != dir || refresh) {
-			display.setTextSize(3);
-			display.fillRect(144,64,33,21, BLACK);
-			if      (dir.length() == 1) display.setCursor(153,64);
-			else if (dir.length() == 2) display.setCursor(144,64);
-			display.print(dir);
+			printCenteredText(dir, 3, GREEN, 107, 107, 64);
 		}
 		this->oldDirection = dir;
-		display.setTextSize(2);
 
 		if (this->oldAngle != angle || refresh) {
-			display.fillRect(125,95,70,14, BLACK);
-			if (angle >= 0 && angle < 10) {
-				display.setCursor(137,95);
-				display.print(angle);
-			} else if (angle >= 10 && angle < 100) {
-				display.setCursor(131,95);
-				display.print(angle);
-			} else if (angle >= 100) {
-				display.setCursor(125,95);
-				display.print(angle);
-			}
+			printCenteredText(String(angle), 2, GREEN, 107, 107, 95);
 		}
 		this->oldAngle = angle;
 	}
 
 	void displayTemperature(double temp) {
 		if (refresh) {
-			display.setCursor(234,30);
-			display.setTextSize(1);
-			display.print("TEMPERATURE");
+			printCenteredText("TEMPERATURE", 1, GREEN, 107, 214, 30);
 		}
-		display.setTextSize(3);
+
 		if (this->oldTemperature != temp || refresh) {
-			display.fillRect(214,64,107,21,BLACK);
+
 			if (currTemp != -3.4028235E+38) {
-				if (temp <= -1000) {
-					display.setCursor(223,64);
-					display.print(temp,0);
-				} else if (temp <= -100 && temp > -1000) {
-					display.setCursor(232,64);
-					display.print(temp,0);
-				} else if (temp <= -10 && temp > -100) {
-					display.setCursor(223,64);
-					display.print(temp,1);
-				} else if (temp < 0 && temp > -10) {
-					display.setCursor(223,64);
-					display.print(temp,2);
-				} else if (temp < 10) {
-					display.setCursor(232,64);
-					display.print(temp,2);
-				} else if (temp >= 10 && temp < 100) {
-					display.setCursor(223,64);
-					display.print(temp,2);
-				} else if (temp >= 100 && temp < 1000) {
-					display.setCursor(223,64);
-					display.print(temp,1);
-				} else if (temp >= 1000) {
-					display.setCursor(232,64);
-					display.print(temp,0);
-				}
+				if      (temp <= -100 || temp >= 1000)   printCenteredText(String(temp, 0), 3, GREEN, 107, 214, 64);
+				else if ((temp <= -10 && temp > -100) ||
+				         (temp >= 100 && temp < 1000))   printCenteredText(String(temp, 1), 3, GREEN, 107, 214, 64);
+				else if (-10 < temp && temp < 100)       printCenteredText(String(temp, 2), 3, GREEN, 107, 214, 64);
 			} else {
-				display.setCursor(232,64);
-				display.println("DISC");
+				printCenteredText("DISC", 3, GREEN, 107, 214, 64);
 			}
 		}
 		this->oldTemperature = temp;
@@ -1066,8 +1031,7 @@ void logPointToFile(DeviceAddress tempSensor) {
 	if (GPS.month >= 10) {
 		logfile.print(GPS.month);
 		logfile.print('-');
-	}
-	else {
+	} else {
 		logfile.print('0');
 		logfile.print(GPS.month);
 		logfile.print('-');
@@ -1113,7 +1077,7 @@ void logPointToFile(DeviceAddress tempSensor) {
 	logfile.print(GPS.longitudeDegrees,14);
 	logfile.print(';');
 
-	logfile.print(GPS.altitude);
+	logfile.print(GPS.altitude,14);
 	if(logfile.print(';') == 0) {
 		Serial.println("ERROR");
 		display.fillScreen(BLACK);
@@ -1214,13 +1178,6 @@ void loop() {
 		hasBeenPressed = false;
 	}
 
-	if (! usingInterrupt) {
-		// read data from the GPS in the 'main loop'
-		char c = GPS.read();
-		// if you want to debug, this is a good time to do it!
-		if (GPSECHO)
-			if (c) Serial.print(c);
-	}
 
 	// if a sentence is received, we can check the checksum, parse it...
 	if (GPS.newNMEAreceived()) {
@@ -1231,6 +1188,7 @@ void loop() {
 		// Don't call lastNMEA more than once between parse calls!  Calling lastNMEA
 		// will clear the received flag and can cause very subtle race conditions if
 		// new data comes in before parse is called again.
+
 		char *stringptr = GPS.lastNMEA();
 
 		if (!GPS.parse(stringptr))   // this also sets the newNMEAreceived() flag to false
