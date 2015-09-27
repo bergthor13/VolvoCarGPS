@@ -908,17 +908,11 @@ void logPointToFile(DeviceAddress tempSensor) {
 	if(logfile.print("20") == 0) {
 		Serial.println("couldnt log to file!");
 		display.fillScreen(BLACK);
-		display.setTextColor(RED);
-		display.setTextSize(5);
-		display.setCursor(88,71);
-		display.println("ERROR");
-		display.setTextSize(2);
-		display.setCursor(59,117);
-		display.println("Couldn't write to");
-		display.setCursor(47,136);
-		display.println("file. Card may have");
-		display.setCursor(83,155);
-		display.println("been removed.");
+
+		printCenteredText("ERROR", 5, RED, 320, 0, 71);
+		printCenteredText("Couldn't write to", 2, RED, 320, 0, 117);
+		printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
+		printCenteredText("been removed.", 2, RED, 320, 0, 155);
 		error(2);
 	}
 	logfile.print(GPS.year);
