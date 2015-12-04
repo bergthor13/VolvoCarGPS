@@ -997,8 +997,8 @@ class DirectionScreen {
 	int oldAngle;
 	void displayDataFieldOutlines() {
 		// Upper Horizontal Lines
-		display.drawLine(0,60,80,60,GREEN);
-		display.drawLine(240,60,320,60,GREEN);
+		display.drawLine(0,   60, 80, 60,  GREEN);
+		display.drawLine(240, 60, 320, 60, GREEN);
 
 		// Upper Vertical Lines
 		display.drawLine(80,20,80,60,GREEN);
@@ -1013,35 +1013,36 @@ class DirectionScreen {
 		display.drawLine(240,200,240,240,GREEN);
 
 		// Upper Text
-		printCenteredText("ANGLE", 1, GREEN, 80, 0, 24);
+		printCenteredText("ANGLE",     1, GREEN, 80, 0,   24);
 		printCenteredText("DIRECTION", 1, GREEN, 80, 240, 24);
 		// Lower Text
-		printCenteredText("SPEED", 1, GREEN, 80, 0, 205);
-		printCenteredText("ALTITUDE", 1, GREEN, 80, 240, 205);
+		printCenteredText("SPEED",     1, GREEN, 80, 0,   205);
+		printCenteredText("ALTITUDE",  1, GREEN, 80, 240, 205);
 	}
 
 	void displayDataFieldData(float angle, String direction, float speed, float altitude) {
 		// Upper Text
-		printCenteredText(String(angle,0),       2, GREEN, 80, 240, 38);
-		printCenteredText(direction,   2, GREEN, 80, 0,   38);
+		printCenteredText(String(angle,0),    2, GREEN, 80, 240, 38);
+		printCenteredText(direction,          2, GREEN, 80, 0,   38);
 		// Lower Text
-		printCenteredText(String(speed,2), 2, GREEN, 80, 0,   238);
-		printCenteredText(String(altitude,2),    2, GREEN, 80, 240, 238);
+		printCenteredText(String(speed,2),    2, GREEN, 80, 0,   219);
+		printCenteredText(String(altitude,2), 2, GREEN, 80, 240, 219);
 
 
 
 	}
 	void displayCompassOutline() {
-		display.drawCircle(160,130,100,GREEN);
-		display.drawLine(259,  130, 250, 130, GREEN);
-		display.drawLine(230,  200, 224, 194, GREEN);
-		display.drawLine(160,  229, 160, 220, GREEN);
-		display.drawLine(90,   200, 96,  194, GREEN);
-		display.drawLine(61,   130, 70,  130, GREEN);
-		display.drawLine(90,   60,  96,  66,  GREEN);
-		display.drawLine(160,  31,  160, 40,  GREEN);
-		display.drawLine(230,  60,  224, 66,  GREEN);
-		display.drawLine(259,  130, 250, 130, GREEN);
+		display.drawCircle(160, 130, 100, GREEN);
+
+		display.drawLine  (259, 130, 250, 130, GREEN);
+		display.drawLine  (230, 200, 224, 194, GREEN);
+		display.drawLine  (160, 229, 160, 220, GREEN);
+		display.drawLine  (90,  200, 96,  194, GREEN);
+		display.drawLine  (61,  130, 70,  130, GREEN);
+		display.drawLine  (90,  60,  96,  66,  GREEN);
+		display.drawLine  (160, 31,  160, 40,  GREEN);
+		display.drawLine  (230, 60,  224, 66,  GREEN);
+		display.drawLine  (259, 130, 250, 130, GREEN);
 	}
 	void displayCompassDirection(float angle) {
 
@@ -1067,7 +1068,8 @@ class DirectionScreen {
 		}
 		// Not the best solution.
 		displayDataFieldData(GPS.angle, getDirection(GPS.angle), GPS.speed*1.852, GPS.altitude);
-		refresh = false;
+		displayCompassDirection(GPS.angle);
+
 	}
 };
 DirectionScreen directionScreen;
@@ -1356,6 +1358,7 @@ void loop() {
 				displayLocation();
 				break;
 		}
+		refresh = false;
 
 
 
