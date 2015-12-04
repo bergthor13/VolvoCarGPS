@@ -715,7 +715,7 @@ class SummaryScreen {
 		this->oldAltitude = alt;
 	}
 
-	void displaySatellites(int sat) {
+	void displaySatellites(int sat, float hdop) {
 		if (refresh) {
 			display.setCursor(131,128);
 			printCenteredText("SATELLITES", 1, GREEN, 107, 107, 128);
@@ -724,6 +724,8 @@ class SummaryScreen {
 		if (this->oldSatellites != sat || refresh) {
 			printCenteredText(String(sat), 3, GREEN, 107, 107, 162);
 		}
+		printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
+
 		this->oldSatellites = sat;
 	}
 
@@ -796,7 +798,7 @@ class SummaryScreen {
 		displayDirection(GPS.angle);
 		displayTemperature(currTemp);
 		displayAltitude(GPS.altitude);
-		displaySatellites(GPS.satellites);
+		displaySatellites(GPS.satellites, GPS.HDOP);
 		displayLogsAndPoints(logs,trkpts);
 		displayGPSStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
 		refresh = false;
@@ -1076,15 +1078,7 @@ void displayDateTime() {
 }
 
 void displayLocation() {
-	if (refresh)
-	{
-		display.drawLine(0,130,320,130,GREEN);
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
-		display.print("Location:\nWork in progress...");
-	}
-	refresh = false;
+
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
@@ -1197,8 +1191,8 @@ bool tappedAlt     (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >
 bool tappedSats    (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
 bool tappedLogs    (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
 
-bool tappedTime    (int x, int y) { return 118 <= x && x <= 240 && 0 <= y && y <= 320;    }
-bool tappedLocation(int x, int y) { return false; }
+bool tappedTime    (int x, int y) { return 118 <= x && x <= 240 && 0 <= y && y <= 320; }
+bool tappedLocation(int x, int y) { return 0 <= x && x <= 20 && 0 <= y && y <= 320;    }
 
 void loop() {
 
