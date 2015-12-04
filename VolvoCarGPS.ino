@@ -391,7 +391,7 @@ void printCenteredText(String text, int textSize, int color, int areaWidth, int 
   display.setTextSize(textSize);
   display.setCursor(x,y);
   display.setTextColor(color);
-  display.fillRect(offset+1,y,areaWidth-2,textSize*7,BLACK);
+  display.fillRect(offset+1,y,areaWidth-2,textSize*8,BLACK);
   display.print(text);
 }
 
@@ -423,6 +423,30 @@ struct DisplayDate {
 		this->min = min;
 		this->sec = sec;
     this->mil = mil;
+	}
+	String getDate() {
+		String date;
+		this->day < 10 ? date.concat("0"):false;
+		date.concat(String(day));
+		date.concat(".");
+		this->mth < 10 ? date.concat("0"):false;
+		date.concat(String(mth));
+		date.concat(".");
+		date.concat("20");
+		date.concat(String(yr));
+		return date;
+	}
+	String getTime() {
+		String date;
+		this->hr < 10 ? date.concat("0"):false;
+		date.concat(String(hr));
+		date.concat(":");
+		this->min < 10 ? date.concat("0"):false;
+		date.concat(String(min));
+		date.concat(":");
+		this->sec < 10 ? date.concat("0"):false;
+		date.concat(String(sec));
+		return date;
 	}
 };
 DisplayDate newDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
@@ -1038,6 +1062,31 @@ void displayLogsAndPoints() {
 	refresh = false;
 }
 
+void displayDateTime() {
+	if (refresh)
+	{
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Date and time:");
+	}
+	printCenteredText(newDate.getDate(), 5, GREEN, 320, 0, 75);
+	printCenteredText(newDate.getTime(), 5, GREEN, 320, 0, 145);
+	refresh = false;
+}
+
+void displayLocation() {
+	if (refresh)
+	{
+		display.drawLine(0,130,320,130,GREEN);
+		display.setTextSize(2);
+		display.setTextColor(GREEN);
+		display.setCursor(3,23);
+		display.print("Location:\nWork in progress...");
+	}
+	refresh = false;
+}
+
 void logPointToFile(DeviceAddress tempSensor) {
 	if(logfile.print("20") == 0) {
 		Serial.println("couldnt log to file!");
@@ -1140,15 +1189,16 @@ double distanceBetweenPoints(double lat1, double lat2, double lon1, double lon2)
 bool hasBeenPressed = false;
 double oldLat = NULL, oldLon = NULL;
 
-bool tappedSpeed(int x, int y) { return 118 < x && x <= 215 && 107 >= y && y > 0;   }
-bool tappedDir  (int x, int y) { return 118 < x && x <= 215 && 213 >= y && y > 107; }
-bool tappedTemp (int x, int y) { return 118 < x && x <= 215 && 320 >= y && y > 213; }
+bool tappedSpeed   (int x, int y) { return 118 < x && x <= 215 && 107 >= y && y > 0;   }
+bool tappedDir     (int x, int y) { return 118 < x && x <= 215 && 213 >= y && y > 107; }
+bool tappedTemp    (int x, int y) { return 118 < x && x <= 215 && 320 >= y && y > 213; }
 
-bool tappedAlt  (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >= 0;   }
-bool tappedSats (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
-bool tappedLogs (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
+bool tappedAlt     (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >= 0;   }
+bool tappedSats    (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
+bool tappedLogs    (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
 
-bool tappedTime (int x, int y) { return false; }
+bool tappedTime    (int x, int y) { return 118 <= x && x <= 240 && 0 <= y && y <= 320;    }
+bool tappedLocation(int x, int y) { return false; }
 
 void loop() {
 
@@ -1191,6 +1241,16 @@ void loop() {
 			} else if (tappedLogs(p.x, p.y)) {
 				display.fillRect(0,20,320,240, BLACK);
 				currentScreen = 6;
+				refresh = true;
+			}
+			 else if (tappedTime(p.x, p.y)) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 7;
+				refresh = true;
+			}
+			 else if (tappedLocation(p.x, p.y)) {
+				display.fillRect(0,20,320,240, BLACK);
+				currentScreen = 8;
 				refresh = true;
 			}
 		}
@@ -1241,6 +1301,12 @@ void loop() {
 				break;
 			case 6:
 				displayLogsAndPoints();
+				break;
+			case 7:
+				displayDateTime();
+				break;
+			case 8:
+				displayLocation();
 				break;
 		}
 
