@@ -250,6 +250,17 @@ void error(uint8_t errno) {
 		i++;
 	}
 }
+String getDirection(double angle) {
+	if(angle >= 337 && angle <= 360) return "N";
+	if(angle >= 0   && angle < 22)   return "N";
+	if(angle >= 67  && angle < 112)  return "E";
+	if(angle >= 157 && angle < 202)  return "S";
+	if(angle >= 247 && angle < 292)  return "W";
+	if(angle >= 22  && angle < 67)   return "NE";
+	if(angle >= 112 && angle < 157)  return "SE";
+	if(angle >= 202 && angle < 247)  return "SW";
+	if(angle >= 292 && angle < 337)  return "NW";
+}
 
 void setup() {
 	//analogWrite(BACKLIGHT_PIN,255);
@@ -630,18 +641,6 @@ class SummaryScreen {
 	int oldPoints = -1, oldSatellites;
 	String oldDirection;
 
-	String getDirection(double angle) {
-		if(angle >= 337 && angle <= 360) return "N";
-		if(angle >= 0   && angle < 22)   return "N";
-		if(angle >= 67  && angle < 112)  return "E";
-		if(angle >= 157 && angle < 202)  return "S";
-		if(angle >= 247 && angle < 292)  return "W";
-		if(angle >= 22  && angle < 67)   return "NE";
-		if(angle >= 112 && angle < 157)  return "SE";
-		if(angle >= 202 && angle < 247)  return "SW";
-		if(angle >= 292 && angle < 337)  return "NW";
-	}
-
 	void displaySpeed(float speed) {
 		if (refresh) {
 			printCenteredText("SPEED", 1, GREEN, 107, 0, 30);
@@ -668,7 +667,7 @@ class SummaryScreen {
 			printCenteredText("DIRECTION", 1, GREEN, 107, 107, 30);
 		}
 
-		String dir = this->getDirection(angle);
+		String dir = getDirection(angle);
 
 		if (this->oldDirection != dir || refresh) {
 			printCenteredText(dir, 3, GREEN, 107, 107, 64);
@@ -793,6 +792,8 @@ class SummaryScreen {
 	}
 	public:
 	void displayScreen() {
+		// Not the best solution to get the data here,
+		// would be better to get it in as variables.
 		displayOutlines();
 		displaySpeed(GPS.speed*1.852);
 		displayDirection(GPS.angle);
@@ -992,37 +993,16 @@ void displaySpeedScreen() {
 	refresh = false;
 }
 
-String getDirection(double angle) {
-	if(angle >= 337 && angle <= 360) return "N";
-	if(angle >= 0   && angle < 22)   return "N";
-	if(angle >= 67  && angle < 112)  return "E";
-	if(angle >= 157 && angle < 202)  return "S";
-	if(angle >= 247 && angle < 292)  return "W";
-	if(angle >= 22  && angle < 67)   return "NE";
-	if(angle >= 112 && angle < 157)  return "SE";
-	if(angle >= 202 && angle < 247)  return "SW";
-	if(angle >= 292 && angle < 337)  return "NW";
-}
-
-void displayDirectionScreen() {
-	if (refresh)
-	{
-		// Upper Text
-		printCenteredText("ANGLE", 1, GREEN, 80, 0, 24);
-		printCenteredText("DIRECTION", 1, GREEN, 80, 240, 24);
-
+class DirectionScreen {
+	int oldAngle;
+	void displayDataFieldOutlines() {
 		// Upper Horizontal Lines
 		display.drawLine(0,60,80,60,GREEN);
 		display.drawLine(240,60,320,60,GREEN);
 
-
 		// Upper Vertical Lines
 		display.drawLine(80,20,80,60,GREEN);
 		display.drawLine(240,20,240,60,GREEN);
-
-		// Lower Text
-		printCenteredText("SPEED", 1, GREEN, 80, 0, 205);
-		printCenteredText("ALTITUDE", 1, GREEN, 80, 240, 205);
 
 		// Lower Horizontal Lines
 		display.drawLine(0,200,80,200,GREEN);
@@ -1032,9 +1012,26 @@ void displayDirectionScreen() {
 		display.drawLine(80,200,80,240,GREEN);
 		display.drawLine(240,200,240,240,GREEN);
 
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
+		// Upper Text
+		printCenteredText("ANGLE", 1, GREEN, 80, 0, 24);
+		printCenteredText("DIRECTION", 1, GREEN, 80, 240, 24);
+		// Lower Text
+		printCenteredText("SPEED", 1, GREEN, 80, 0, 205);
+		printCenteredText("ALTITUDE", 1, GREEN, 80, 240, 205);
+	}
+
+	void displayDataFieldData(float angle, String direction, float speed, float altitude) {
+		// Upper Text
+		printCenteredText(String(angle,0),       2, GREEN, 80, 240, 38);
+		printCenteredText(direction,   2, GREEN, 80, 0,   38);
+		// Lower Text
+		printCenteredText(String(speed,2), 2, GREEN, 80, 0,   238);
+		printCenteredText(String(altitude,2),    2, GREEN, 80, 240, 238);
+
+
+
+	}
+	void displayCompassOutline() {
 		display.drawCircle(160,130,100,GREEN);
 		display.drawLine(259,  130, 250, 130, GREEN);
 		display.drawLine(230,  200, 224, 194, GREEN);
@@ -1045,20 +1042,35 @@ void displayDirectionScreen() {
 		display.drawLine(160,  31,  160, 40,  GREEN);
 		display.drawLine(230,  60,  224, 66,  GREEN);
 		display.drawLine(259,  130, 250, 130, GREEN);
+	}
+	void displayCompassDirection(float angle) {
 
 		display.drawLine(160,
 		                 130,
-		                 (160 + (90 * cos((GPS.angle * 1000.0 / 57296.0)-(PI/2)))),
-		                 (130 + (90 * sin((GPS.angle * 1000.0 / 57296.0)-(PI/2)))),
-		                 RED);
-	}
-	printCenteredText(String(GPS.angle,0),       2, GREEN, 80, 240, 38);
-	printCenteredText(getDirection(GPS.angle),   2, GREEN, 80, 0,   38);
+		                (160 + (90 * cos((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
+		                (130 + (90 * sin((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
+		                 BLACK);
 
-	printCenteredText(String(GPS.speed*1.852,2), 2, GREEN, 80, 0,   238);
-	printCenteredText(String(GPS.altitude,0),    2, GREEN, 80, 240, 238);
-	refresh = false;
-}
+		display.drawLine(160,
+		                 130,
+		                (160 + (90 * cos((angle * 1000.0 / 57296.0)-(PI/2)))),
+		                (130 + (90 * sin((angle * 1000.0 / 57296.0)-(PI/2)))),
+		                 RED);
+		oldAngle = angle;
+	}
+
+	public:
+	void displayScreen(bool refresh) {
+		if (refresh) {
+			displayDataFieldOutlines();
+			displayCompassOutline();
+		}
+		// Not the best solution.
+		displayDataFieldData(GPS.angle, getDirection(GPS.angle), GPS.speed*1.852, GPS.altitude);
+		refresh = false;
+	}
+};
+DirectionScreen directionScreen;
 
 void displayTemperatureScreen() {
 	if (refresh)
@@ -1323,7 +1335,7 @@ void loop() {
 				displaySpeedScreen();
 				break;
 			case 2:
-				displayDirectionScreen();
+				directionScreen.displayScreen(refresh);
 				break;
 			case 3:
 				displayTemperatureScreen();
