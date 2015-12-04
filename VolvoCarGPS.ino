@@ -640,7 +640,7 @@ GPS_Status oldGpsStatus(-1, 0, 0);
 
 class SummaryScreen {
 
-	double oldSpeed, oldAngle, oldTemperature, oldAltitude, oldAcceleration;
+	double oldSpeed, oldAngle, oldTemperature, oldAltitude, oldAcceleration, oldHdop;
 	int oldPoints = -1, oldSatellites;
 	String oldDirection;
 
@@ -726,9 +726,14 @@ class SummaryScreen {
 		if (this->oldSatellites != sat || refresh) {
 			printCenteredText(String(sat), 3, GREEN, 107, 107, 162);
 		}
-		printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
-
 		this->oldSatellites = sat;
+
+		if(this->oldHdop !=hdop || refresh) {
+			printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
+		}
+		this->oldHdop = hdop;
+
+
 	}
 
 	void displayLogsAndPoints(int logNumber, int point) {
