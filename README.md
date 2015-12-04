@@ -13,3 +13,8 @@ All components can be bought directly from [www.adafruit.com](http://www.adafrui
 - [Waterproof DS18B20 Digital temperature sensor](https://www.adafruit.com/products/381)
 - [External Active Antenna - 3-5V 28dB](https://www.adafruit.com/products/960)
 - [SMA to uFL/u.FL/IPX/IPEX RF Adapter Cable](https://www.adafruit.com/products/851)
+
+## Walkthrough of the software
+[Summary Screen](https://github.com/bergthor13/VolvoCarGPS/blob/master/doc/SummaryScreen.md)
+
+[Speed Screen](https://github.com/bergthor13/VolvoCarGPS/blob/master/doc/SpeedScreen.md)
