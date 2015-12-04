@@ -1020,7 +1020,7 @@ bool tappedAlt  (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >= 0
 bool tappedSats (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
 bool tappedLogs (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
 
-bool tappedTime (int x, int y) { return false }
+bool tappedTime (int x, int y) { return false; }
 
 void loop() {
 	if (ts.touched() && !hasBeenPressed) {
