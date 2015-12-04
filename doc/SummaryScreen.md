@@ -1,5 +1,5 @@
 ## Summary Screen
-![SummaryScreen](https://raw.githubusercontent.com/bergthor13/VolvoCarGPS/master/images/SummaryScreen.jpg)
+![SummaryScreen](https://raw.githubusercontent.com/bergthor13/VolvoCarGPS/master/doc/images/SummaryScreen.jpg)
 Here is the main screen. This screen shows the status of the GPS.
 ## Speed
 Shows the speed in kilometers per hour. The lower number shows acceleration/deceleration.
