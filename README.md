@@ -38,5 +38,7 @@ Here is how the log file is structured. If the temperature sensor is not connect
 |2015-04-24T15:12:10.0Z|61.04317474365234|-17.96687889099121|22.50|3.44|
 |2015-04-24T15:12:10.0Z|61.04317474365234|-17.96687889099121|22.50|NULL|
 
+This should have been a table. Oh well. I will fix this later today.
+
 To convert this file to a GPX file, you can use the code in the CSV_to_GPX folder.
 This is not a final version, so use at your own risk! :)
