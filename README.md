@@ -30,3 +30,13 @@ Satellites Screen
 Log and Point Screen
 
 Date and Time Screen
+
+## The Log File
+Here is how the log file is structured. If the temperature sensor is not connected,`NULL` will be written instead.
+|Timestamp|Latitude|Longitude|Altitude|Temperature|
+|---|---|---|---|---|
+|2015-04-24T15:12:10.0Z|61.04317474365234|-17.96687889099121|22.50|3.44|
+|2015-04-24T15:12:10.0Z|61.04317474365234|-17.96687889099121|22.50|NULL|
+
+To convert this file to a GPX file, you can use the code in the CSV_to_GPX folder.
+This is not a final version, so use at your own risk! :)
