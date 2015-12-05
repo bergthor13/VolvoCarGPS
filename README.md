@@ -34,7 +34,7 @@ Date and Time Screen
 ## The Log File
 Here is how the log file is structured. It is a CSV file that contains the following fields:
 
-|Timestamp|Latitude|Longitude|Altitude|Temperature|
+|Timestamp|Latitude|Longitude|Altitude (m)|Temperature (°C)|
 |---|---|---|---|---|
 |2015-04-24T15:12:10.0Z|61.04317474365234|-17.96687889099121|22.50|3.44|
 |2015-04-24T15:12:10.0Z|61.04317474365234|-17.96687889099121|22.50|NULL|
