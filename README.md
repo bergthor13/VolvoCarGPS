@@ -18,3 +18,15 @@ All components can be bought directly from [www.adafruit.com](http://www.adafrui
 [Summary Screen](https://github.com/bergthor13/VolvoCarGPS/blob/master/doc/SummaryScreen.md)
 
 [Speed Screen](https://github.com/bergthor13/VolvoCarGPS/blob/master/doc/SpeedScreen.md)
+
+Direction Screen
+
+Temperature Screen
+
+Altitude Screen
+
+Satellites Screen
+
+Log and Point Screen
+
+Date and Time Screen
