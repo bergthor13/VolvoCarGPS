@@ -11,17 +11,30 @@
 #include <DallasTemperature.h>
 #include <Adafruit_FT6206.h>
 #include <math.h>
-struct GPS_Status;
-// The control pins for the LCD can be assigned to any digital or
-// analog pins...but we'll use the analog pins as this allows us to
-// double up the pins with the touch screen (see the TFT paint example).
-#define LCD_CS A3 // Chip Select goes to Analog 3
-#define LCD_CD A2 // Command/Data goes to Analog 2
-#define LCD_WR A1 // LCD Write goes to Analog 1
-#define LCD_RD A0 // LCD Read goes to Analog 0
 
+// Pins
+#define LCD_CS    A3 // Chip Select goes to Analog 3
+#define LCD_CD    A2 // Command/Data goes to Analog 2
+#define LCD_WR    A1 // LCD Write goes to Analog 1
+#define LCD_RD    A0 // LCD Read goes to Analog 0
 #define LCD_RESET A4 // Can alternately just connect to Arduino's reset pin
 
+#define ONE_WIRE_BUS  31
+#define BACKLIGHT_PIN 44
+#define CHIPSELECT    10
+#define LEDPIN        13
+#define DISPLAYBUTTON 40
+
+// Options
+#define GPSECHO               false
+#define LOG_FIXONLY           false
+#define TEMPERATURE_PRECISION 11
+
+// The size of the screen
+#define SCREEN_WIDTH  320
+#define SCREEN_HEIGHT 240
+
+// Colors
 #define	BLACK   0x0000
 #define	BLUE    0x001F
 #define	RED     0xF800
@@ -31,42 +44,37 @@ struct GPS_Status;
 #define YELLOW  0xFFE0
 #define WHITE   0xFFFF
 #define GREY    0xE71C
-#define VOLVOGREEN 0x33CC33
 
-#define GPSECHO  false
-#define LOG_FIXONLY false
-#define OLED_RESET 4
-#define ONE_WIRE_BUS 31
-#define TEMPERATURE_PRECISION 11
-#define BACKLIGHT_PIN 44
 
-#define chipSelect 10
-#define ledPin 13
+Adafruit_GPS      GPS(&Serial1);                                      // Library driver for the GPS.
+Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET); // Library driver for the TFT LCD.
+Adafruit_FT6206   ts = Adafruit_FT6206();                             // Library driver for the touch.
+OneWire           oneWire(ONE_WIRE_BUS);                              // Library for the digital temperature sensor.
+DallasTemperature sensors(&oneWire);                                  // Library for the digital temperature sensor.
+DeviceAddress     tempDeviceAddress;                                  // Library for the digital temperature sensor.
+File              logfile;                                            // The file to write to.
 
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 240
+float        totalDistance = 0;         // The total distance since reset.
 
-float totalDistance = 0;
-int screen = 0, secs = 0;
-double maxAlt = -3.4028235E+38, minAlt = 3.4028235E+38, maxSpeed = -3.4028235E+38, avgSpeed, maxTemp = -3.4028235E+38, minTemp = 3.4028235E+38, currTemp, currAlt, currSpeed;
-bool wasPressed = false;
-#define displayButton 40
-// LAST UPDATED 26.12.2014
+int          currentScreen = 0;         // The current screen that is displayed.
 
-Adafruit_GPS      GPS(&Serial1);
-Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
-Adafruit_FT6206   ts = Adafruit_FT6206();
-OneWire           oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-DeviceAddress     tempDeviceAddress;
-File              logfile;
+double       maxAlt = -3.4028235E+38,   // Maximum altitude since reset.
+             minAlt = 3.4028235E+38,    // Minimum altitude since reset.
+             maxSpeed = -3.4028235E+38, // Maximum speed since reset.
+             avgSpeed,                  // Average speed since reset.
+             maxTemp = -3.4028235E+38,  // Maximum temperature since reset.
+             minTemp = 3.4028235E+38,   // Minimum temperature since reset.
+             currTemp,                  // Current temperature.
+             currAlt,                   // Current altitude.
+             currSpeed;                 // Current speed.
 
-bool         gotFix         = false;
-boolean      usingInterrupt = false;
-unsigned int trkpts         = 0;
-unsigned int logs           = 0;
-int currentScreen           = 0;
-bool refresh = true;
+bool         wasPressed = false,        // Tells if the screen has already been pressed.
+             gotFix = false,            // Tells if the GPS has gotten a fix since start.
+             usingInterrupt = false,    // Tells if we should use interrupts for parsing NMEA data.
+             refresh = true;            // Tells if we should refresh the screen.
+
+unsigned int trkpts = 0,                // The number of track points in the current log file.
+             logs = 0;                  // The number of the log on the SD card currently written to.
 
 static const unsigned char PROGMEM volvo [] = {
 	B11111111, B11111111, B11000111, B11111111, B10000011, B11111111, B00000001, B11111111, B11111110, B00111111, B11111111, B11110001,B11111111, B10000011, B11111111, B11110000,
@@ -218,8 +226,6 @@ const unsigned char  PROGMEM volvo_2 [] = {
 	B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000
 };
 
-
-
 void useInterrupt(boolean);
 
 uint8_t parseHex(char c) {
@@ -263,7 +269,6 @@ String getDirection(double angle) {
 }
 
 void setup() {
-	//analogWrite(BACKLIGHT_PIN,255);
 	Serial.begin(115200);
 	display.reset();
 	display.begin(display.readID());
@@ -271,17 +276,16 @@ void setup() {
 	display.fillScreen(BLACK);
 	display.drawBitmap(96, 40, volvo_2, 128, 128, GREY);
 	printCenteredText("Initializing...", 2, WHITE, 320, 0, 188);
-	Serial. begin(115200);
 	sensors.begin();
 	ts.begin();
-	pinMode(ledPin, OUTPUT);
+	pinMode(LEDPIN, OUTPUT);
 
 	// make sure that the default chip select pin is set to
 	// output, even if you don't use it:
 	pinMode(10, OUTPUT);
-	pinMode(displayButton, OUTPUT);
+	pinMode(DISPLAYBUTTON, OUTPUT);
 	// see if the card is present and can be initialized:
-	if (!SD.begin(chipSelect, 11, 12, 13)) {
+	if (!SD.begin(CHIPSELECT, 11, 12, 13)) {
 		Serial.println("Card init. failed!");
 		display.fillScreen(BLACK);
 		display.setTextColor(RED);
