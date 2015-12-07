@@ -52,7 +52,6 @@ enum Error {
 	WRITE_ERROR
 };
 
-
 Adafruit_GPS      GPS(&Serial1);                                      // Library driver for the GPS.
 Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET); // Library driver for the TFT LCD.
 Adafruit_FT6206   ts = Adafruit_FT6206();                             // Library driver for the touch.
@@ -60,8 +59,6 @@ OneWire           oneWire(ONE_WIRE_BUS);                              // Library
 DallasTemperature sensors(&oneWire);                                  // Library for the digital temperature sensor.
 DeviceAddress     tempDeviceAddress;                                  // Library for the digital temperature sensor.
 File              logfile;                                            // The file to write to.
-
-float        totalDistance = 0;         // The total distance since reset.
 
 int          currentScreen = 0;         // The current screen that is displayed.
 
@@ -358,7 +355,13 @@ GPS_Status gpsStatus(-1,0,0);
 GPS_Status newGpsStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
 GPS_Status oldGpsStatus(-1, 0, 0);
 
-class SummaryScreen {
+class Screen {
+	public:
+	bool refresh;
+	virtual void displayScreen(bool);
+};
+
+class SummaryScreen: public Screen {
 
 	double oldSpeed, oldAngle, oldTemperature, oldAltitude, oldAcceleration, oldHdop;
 	int oldPoints = -1, oldSatellites;
@@ -516,7 +519,7 @@ class SummaryScreen {
 		oldGpsStatus.updateStatus(newGpsStatus.fix, newGpsStatus.lat, newGpsStatus.lon);
 	}
 	public:
-	void displayScreen() {
+	void displayScreen(bool refresh) {
 		// Not the best solution to get the data here,
 		// would be better to get it in as variables.
 		displayOutlines();
@@ -532,8 +535,7 @@ class SummaryScreen {
 };
 SummaryScreen summaryScreen;
 
-class SpeedScreen {
-	bool refresh;
+class SpeedScreen: public Screen {
 	float oldSpeed, oldAvgSpeed, oldMaxSpeed, oldDistance, oldAltitude;
 	int oldSatellites;
 	void displayDataFieldOutlines() {
@@ -622,7 +624,7 @@ class SpeedScreen {
 			printCenteredText("DISTANCE", 1, GREEN, 80, 240, 24);
 		}
 		if (oldDistance != distance || this->refresh) {
-			printCenteredText(String(totalDistance,2), 2, GREEN, 80, 240, 38);
+			printCenteredText(String(distance, 2), 2, GREEN, 80, 240, 38);
 		}
 		this->oldDistance = distance;
 	}
@@ -668,8 +670,7 @@ class SpeedScreen {
 };
 SpeedScreen speedScreen;
 
-class DirectionScreen {
-	bool refresh;
+class DirectionScreen: public Screen {
 	float oldAngle, oldSpeed, oldAltitude;
 	String oldDirection;
 	void displayDataFieldOutlines() {
@@ -787,6 +788,12 @@ class DirectionScreen {
 	}
 };
 DirectionScreen directionScreen;
+
+Screen* screens[3] = {
+	new SummaryScreen(),
+	new SpeedScreen(),
+	new DirectionScreen()
+};
 
 void useInterrupt(boolean);
 
@@ -1236,17 +1243,33 @@ void loop() {
 		if (LOG_FIXONLY && !GPS.fix) {
 			return;
 		}
-		// TODO: Refresh the display.
+
+		sensors.requestTemperatures();
+		double temp;
+		if (sensors.getAddress(tempDeviceAddress, 0)) {
+			temp = sensors.getTempC(tempDeviceAddress);
+			currTemp = temp;
+			if (temp < minTemp) minTemp = temp;
+			if (temp > maxTemp) maxTemp = temp;
+		} else {
+			currTemp = -3.4028235E+38;
+		}
+		currAlt = GPS.altitude;
+		if (currAlt < minAlt) minAlt = currAlt;
+		if (currAlt > maxAlt) maxAlt = currAlt;
+
+		currSpeed = GPS.speed*1.852;
+		if (currSpeed > gpsStatus.maxSpeed) gpsStatus.maxSpeed = currSpeed;
+		double potPos = analogRead(0);
+
 		printTopBar();
+		screens[currentScreen];
 		switch (currentScreen) {
 			case 0:
-				summaryScreen.displayScreen();
 				break;
 			case 1:
-				speedScreen.displayScreen(refresh);
 				break;
 			case 2:
-				directionScreen.displayScreen(refresh);
 				break;
 			case 3:
 				displayTemperatureScreen();
@@ -1269,29 +1292,6 @@ void loop() {
 		}
 		refresh = false;
 
-
-
-		sensors.requestTemperatures();
-		double temp;
-		if (sensors.getAddress(tempDeviceAddress, 0)) {
-			temp = sensors.getTempC(tempDeviceAddress);
-			currTemp = temp;
-			if (temp < minTemp) minTemp = temp;
-			if (temp > maxTemp) maxTemp = temp;
-		} else {
-			currTemp = -3.4028235E+38;
-		}
-		currAlt = GPS.altitude;
-		if (currAlt < minAlt) minAlt = currAlt;
-		if (currAlt > maxAlt) maxAlt = currAlt;
-
-		currSpeed = GPS.speed*1.852;
-		if (currSpeed > gpsStatus.maxSpeed) gpsStatus.maxSpeed = currSpeed;
-		// UPDATE DATE AND TIME
-		// display.fillScreen(BLACK);
-		// printTopBar();
-		double potPos = analogRead(0);
-
 		// Rad. lets log it!
 		if (GPS.fix && strstr(stringptr, "RMC")){
 			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
@@ -1299,7 +1299,7 @@ void loop() {
 			if (oldLat != NULL && oldLon != NULL) {
 				gpsStatus.distance += distanceBetweenPoints(oldLat,GPS.latitudeDegrees,oldLon,GPS.longitudeDegrees);
 				// This will do for now.
-				gpsStatus.avgSpeed = totalDistance/trkpts*60*60;
+				gpsStatus.avgSpeed = gpsStatus.distance/trkpts*60*60;
 			}
 			oldLat = GPS.latitudeDegrees;
 			oldLon = GPS.longitudeDegrees;
