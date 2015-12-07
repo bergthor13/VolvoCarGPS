@@ -45,6 +45,12 @@
 #define WHITE   0xFFFF
 #define GREY    0xE71C
 
+enum Error {
+	INIT_ERROR,
+	FILE_ERROR,
+	WRITE_ERROR
+};
+
 
 Adafruit_GPS      GPS(&Serial1);                                      // Library driver for the GPS.
 Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET); // Library driver for the TFT LCD.
@@ -427,7 +433,7 @@ class SummaryScreen {
 		}
 		this->oldSatellites = sat;
 
-		if(this->oldHdop !=hdop || refresh) {
+		if (this->oldHdop !=hdop || refresh) {
 			printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
 		}
 		this->oldHdop = hdop;
@@ -646,21 +652,41 @@ uint8_t parseHex(char c) {
 }
 
 // blink out an error code
-void error() {
-	while(1) {
+void error(Error error) {
+	display.fillScreen(BLACK);
+	switch (error) {
+		case INIT_ERROR:
+			printCenteredText("ERROR",                5, RED, 320, 0, 71);
+			printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
+			printCenteredText("it couldn't be",       2, RED, 320, 0, 136);
+			printCenteredText("initialized.",         2, RED, 320, 0, 155);
+			break;
+		case FILE_ERROR:
+			printCenteredText("ERROR", 5, RED, 320, 0, 71);
+			printCenteredText("The required file", 2, RED, 320, 0, 117);
+			printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
+			break;
+		case WRITE_ERROR:
+			printCenteredText("ERROR", 5, RED, 320, 0, 71);
+			printCenteredText("Couldn't write to", 2, RED, 320, 0, 117);
+			printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
+			printCenteredText("been removed.", 2, RED, 320, 0, 155);
+			break;
+	}
+	while (1) {
 		delay(5000);
 	}
 }
 String getDirection(double angle) {
-	if(angle >= 337 && angle <= 360) return "N";
-	if(angle >= 0   && angle < 22)   return "N";
-	if(angle >= 67  && angle < 112)  return "E";
-	if(angle >= 157 && angle < 202)  return "S";
-	if(angle >= 247 && angle < 292)  return "W";
-	if(angle >= 22  && angle < 67)   return "NE";
-	if(angle >= 112 && angle < 157)  return "SE";
-	if(angle >= 202 && angle < 247)  return "SW";
-	if(angle >= 292 && angle < 337)  return "NW";
+	if (angle >= 337 && angle <= 360) return "N";
+	if (angle >= 0   && angle < 22)   return "N";
+	if (angle >= 67  && angle < 112)  return "E";
+	if (angle >= 157 && angle < 202)  return "S";
+	if (angle >= 247 && angle < 292)  return "W";
+	if (angle >= 22  && angle < 67)   return "NE";
+	if (angle >= 112 && angle < 157)  return "SE";
+	if (angle >= 202 && angle < 247)  return "SW";
+	if (angle >= 292 && angle < 337)  return "NW";
 }
 
 void setup() {
@@ -681,13 +707,7 @@ void setup() {
 	pinMode(DISPLAYBUTTON, OUTPUT);
 	// see if the card is present and can be initialized:
 	if (!SD.begin(CHIPSELECT, 11, 12, 13)) {
-		display.fillScreen(BLACK);
-
-		printCenteredText("ERROR", 5, RED, 320, 0, 71);
-		printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
-		printCenteredText("it couldn't be", 2, RED, 320, 0, 136);
-		printCenteredText("initialized.", 2, RED, 320, 0, 155);
-		error();
+		error(INIT_ERROR);
 	}
 	printCenteredText("Creating file...", 2, WHITE, 320, 0, 188);
 
@@ -709,14 +729,7 @@ void setup() {
 	}
 
 	logfile = SD.open(filename, FILE_WRITE);
-	if(!logfile) {
-		display.fillScreen(BLACK);
-
-		printCenteredText("ERROR", 5, RED, 320, 0, 71);
-		printCenteredText(filename, 2, RED, 320, 0, 117);
-		printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
-		error();
-	}
+	if (!logfile) error(FILE_ERROR);
 
 	printCenteredText("Starting GPS...", 2, WHITE, 320, 0, 188);
 	GPS.begin(9600);
@@ -786,7 +799,7 @@ void printTopBar() {
 			display.fillRect(3,3,10,14, GREEN);
 			display.fillRect(15,3,10,14, GREEN);
 			display.setCursor(3,3);
-			if(GPS.day < 10){
+			if (GPS.day < 10){
 				display.print("0");
 				display.print(GPS.day);
 			} else {
@@ -799,7 +812,7 @@ void printTopBar() {
 			display.fillRect(39,3,10,14, GREEN);
 			display.fillRect(51,3,10,14, GREEN);
 			display.setCursor(39,3);
-			if(GPS.month < 10){
+			if (GPS.month < 10){
 				display.print("0");
 				display.print(GPS.month);
 			} else {
@@ -812,7 +825,7 @@ void printTopBar() {
 			display.fillRect(99,3,10,14, GREEN);
 			display.fillRect(111,3,10,14, GREEN);
 			display.setCursor(99,3);
-			if(GPS.year < 10){
+			if (GPS.year < 10){
 				display.print("0");
 				display.print(GPS.year, DEC);
 			} else {
@@ -825,7 +838,7 @@ void printTopBar() {
 			display.fillRect(219,3,10,14, GREEN);
 			display.fillRect(231,3,10,14, GREEN);
 			display.setCursor(219,3);
-			if(GPS.hour < 10){
+			if (GPS.hour < 10){
 				display.print("0");
 				display.print(GPS.hour);
 			} else {
@@ -838,7 +851,7 @@ void printTopBar() {
 			display.fillRect(255,3,10,14, GREEN);
 			display.fillRect(267,3,10,14, GREEN);
 			display.setCursor(255,3);
-			if(GPS.minute < 10){
+			if (GPS.minute < 10){
 				display.print("0");
 				display.print(GPS.minute);
 			} else {
@@ -1003,7 +1016,7 @@ void displaySpeedScreen() {
 	float mappedSpeed    = mapfloat(GPS.speed*1.852, 0.0, 90.0, 180.0, 360.0);
 	float mappedMaxSpeed = mapfloat(maxSpeed, 0.0, 90.0, 180.0, 360.0);
 	float mappedAvgSpeed = mapfloat(avgSpeed, 0.0, 90.0, 180.0, 360.0);
-	if(mappedSpeed < 180) mappedSpeed = 180;
+	if (mappedSpeed < 180) mappedSpeed = 180;
 
 	display.setTextSize(1);
 	display.setTextColor(GREEN);
@@ -1115,15 +1128,9 @@ void displayLocation() {
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
-	if(logfile.print(newDate.getISOTimestamp()) == 0) {
-		display.fillScreen(BLACK);
-
-		printCenteredText("ERROR", 5, RED, 320, 0, 71);
-		printCenteredText("Couldn't write to", 2, RED, 320, 0, 117);
-		printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
-		printCenteredText("been removed.", 2, RED, 320, 0, 155);
-
-		error();
+	// Print the current
+	if (logfile.print(newDate.getISOTimestamp()) == 0) {
+		error(WRITE_ERROR);
 	}
 
 	logfile.print(';');
@@ -1135,16 +1142,9 @@ void logPointToFile(DeviceAddress tempSensor) {
 	logfile.print(';');
 
 	logfile.print(GPS.altitude,14);
-	if(logfile.print(';') == 0) {
-		display.fillScreen(BLACK);
-		printCenteredText("ERROR",               5, RED, 320, 0, 71);
-		printCenteredText("Couldn't write to",   2, RED, 320, 0, 117);
-		printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
-		printCenteredText("been removed.",       2, RED, 320, 0, 155);
+	if (logfile.print(';') == 0) error(WRITE_ERROR);
 
-		error();
-	}
-	if(sensors.getAddress(tempDeviceAddress, 0)) {
+	if (sensors.getAddress(tempDeviceAddress, 0)) {
 		double temp = sensors.getTempC(tempSensor);
 		if (temp < minTemp) minTemp = temp;
 		if (temp > maxTemp) maxTemp = temp;
@@ -1314,7 +1314,7 @@ void loop() {
 		// Rad. lets log it!
 		if (GPS.fix && strstr(stringptr, "RMC")){
 			logPointToFile(tempDeviceAddress);
-			if(oldLat != NULL && oldLon != NULL) {
+			if (oldLat != NULL && oldLon != NULL) {
 				totalDistance += distanceBetweenPoints(oldLat,GPS.latitudeDegrees,oldLon,GPS.longitudeDegrees);
 				// This will do for now.
 				avgSpeed = totalDistance/trkpts*60*60;
