@@ -1128,29 +1128,30 @@ void displayLocation() {
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
-	// Print the current
-	if (logfile.print(newDate.getISOTimestamp()) == 0) {
-		error(WRITE_ERROR);
-	}
+	// Print the current time.
+	if (logfile.print(newDate.getISOTimestamp()) == 0) error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
 
-	logfile.print(';');
+	// Print the latitude
+	if (logfile.print(GPS.latitudeDegrees,14) == 0)    error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
 
-	logfile.print(GPS.latitudeDegrees,14);
-	logfile.print(';');
+	// Print the longitude
+	if (logfile.print(GPS.longitudeDegrees,14) == 0)   error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
 
-	logfile.print(GPS.longitudeDegrees,14);
-	logfile.print(';');
+	// Print the altitude
+	if (logfile.print(GPS.altitude,14) == 0)           error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
 
-	logfile.print(GPS.altitude,14);
-	if (logfile.print(';') == 0) error(WRITE_ERROR);
-
+	// Print the temperature.
 	if (sensors.getAddress(tempDeviceAddress, 0)) {
 		double temp = sensors.getTempC(tempSensor);
 		if (temp < minTemp) minTemp = temp;
 		if (temp > maxTemp) maxTemp = temp;
-		logfile.println(temp);
+		if (logfile.println(temp) == 0) error(WRITE_ERROR);
 	} else {
-		logfile.println("NULL");
+		if (logfile.println("NULL") == 0) error(WRITE_ERROR);
 	}
 	logfile.flush();
 }
