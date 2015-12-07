@@ -29,6 +29,7 @@
 #define GPSECHO               false
 #define LOG_FIXONLY           false
 #define TEMPERATURE_PRECISION 11
+#define MAX_SPEED 90
 
 // The size of the screen
 #define SCREEN_WIDTH  320
@@ -781,7 +782,6 @@ void useInterrupt(boolean v) {
 
 bool firstIteration = true;
 void printTopBar() {
-	newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
 	display.setTextColor(BLACK);
 	display.setTextSize(2);
 	if (firstIteration)
@@ -889,6 +889,14 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
 }
 int oldMaxSpeed = 999;
 
+void drawCircleLine(double degree, double circleX, double circleY, double rBegin, double rEnd, int color) {
+	display.drawLine((circleX + (rBegin * cos(degree * 1000.0/57296.0))),
+	                 (circleY + (rBegin * sin(degree * 1000.0/57296.0))),
+	                 (circleX + (rEnd   * cos(degree * 1000.0/57296.0))),
+	                 (circleY + (rEnd   * sin(degree * 1000.0/57296.0))),
+	                 color);
+}
+
 // TODO: Refactor this into a class like SummaryScreen.
 void displaySpeedScreen() {
 	if (refresh)
@@ -911,97 +919,19 @@ void displaySpeedScreen() {
 		display.drawLine(240,20,240,100,GREEN);
 
 		display.drawCircle(160,240,150,GREEN);
-		display.drawLine(21, 188, 33, 193, GREEN);
-		display.drawLine(47, 144, 57, 152, GREEN);
-		display.drawLine(86, 111, 92, 122, GREEN);
-		display.drawLine(134, 93, 137, 106, GREEN);
-		display.drawLine(186, 93, 183, 106, GREEN);
-		display.drawLine(234, 111, 227, 122, GREEN);
-		display.drawLine(273, 144, 263, 152, GREEN);
-		display.drawLine(299, 188, 287, 193, GREEN);
 
-		display.drawLine(14, 213, 22, 215, GREEN);
-		display.drawLine(32, 165, 39, 169, GREEN);
-		display.drawLine(65, 126, 70, 132, GREEN);
-		display.drawLine(109, 100, 112, 107, GREEN);
-		display.drawLine(160, 91, 160, 99, GREEN);
-		display.drawLine(211, 100, 208, 107, GREEN);
-		display.drawLine(255, 126, 250, 132, GREEN);
-		display.drawLine(288, 165, 281, 169, GREEN);
-		display.drawLine(306, 213, 298, 215, GREEN);
+		for (int i = 1; i < MAX_SPEED; i++) {
+			if (i % 10 == 0) {
+				drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 135, GREEN);
+				continue;
+			}
 
-		display.drawLine(12, 234, 15, 234, GREEN);
-		display.drawLine(12, 229, 15, 229, GREEN);
-		display.drawLine(13, 224, 16, 224, GREEN);
-		display.drawLine(13, 218, 16, 219, GREEN);
-		display.drawLine(15, 208, 18, 209, GREEN);
-		display.drawLine(16, 203, 19, 204, GREEN);
-		display.drawLine(18, 198, 21, 199, GREEN);
-		display.drawLine(19, 193, 22, 194, GREEN);
-		display.drawLine(23, 184, 26, 185, GREEN);
-		display.drawLine(25, 179, 28, 180, GREEN);
-		display.drawLine(27, 174, 30, 175, GREEN);
-		display.drawLine(29, 170, 32, 171, GREEN);
-		display.drawLine(34, 161, 37, 162, GREEN);
-		display.drawLine(37, 156, 40, 158, GREEN);
-		display.drawLine(40, 152, 43, 154, GREEN);
-		display.drawLine(43, 148, 46, 150, GREEN);
-		display.drawLine(50, 140, 52, 142, GREEN);
-		display.drawLine(54, 136, 56, 138, GREEN);
-		display.drawLine(57, 133, 59, 135, GREEN);
-		display.drawLine(61, 129, 63, 131, GREEN);
-		display.drawLine(69, 122, 71, 125, GREEN);
-		display.drawLine(73, 119, 75, 122, GREEN);
-		display.drawLine(77, 116, 79, 119, GREEN);
-		display.drawLine(82, 113, 83, 116, GREEN);
-		display.drawLine(91, 108, 92, 111, GREEN);
-		display.drawLine(95, 106, 96, 109, GREEN);
-		display.drawLine(100, 104, 101, 107, GREEN);
-		display.drawLine(105, 102, 106, 105, GREEN);
-		display.drawLine(114, 98, 115, 101, GREEN);
-		display.drawLine(119, 97, 120, 100, GREEN);
-		display.drawLine(124, 95, 125, 98, GREEN);
-		display.drawLine(129, 94, 130, 97, GREEN);
-		display.drawLine(139, 92, 140, 95, GREEN);
-		display.drawLine(145, 92, 145, 95, GREEN);
-		display.drawLine(150, 91, 150, 94, GREEN);
-		display.drawLine(155, 91, 155, 94, GREEN);
-		display.drawLine(165, 91, 165, 94, GREEN);
-		display.drawLine(170, 91, 170, 94, GREEN);
-		display.drawLine(175, 92, 175, 95, GREEN);
-		display.drawLine(181, 92, 180, 95, GREEN);
-		display.drawLine(191, 94, 190, 97, GREEN);
-		display.drawLine(196, 95, 195, 98, GREEN);
-		display.drawLine(201, 97, 200, 100, GREEN);
-		display.drawLine(206, 98, 205, 101, GREEN);
-		display.drawLine(215, 102, 214, 105, GREEN);
-		display.drawLine(220, 104, 219, 107, GREEN);
-		display.drawLine(225, 106, 224, 109, GREEN);
-		display.drawLine(229, 108, 228, 111, GREEN);
-		display.drawLine(238, 113, 237, 116, GREEN);
-		display.drawLine(243, 116, 241, 119, GREEN);
-		display.drawLine(247, 119, 245, 122, GREEN);
-		display.drawLine(251, 122, 249, 125, GREEN);
-		display.drawLine(259, 129, 257, 131, GREEN);
-		display.drawLine(263, 133, 261, 135, GREEN);
-		display.drawLine(266, 136, 264, 138, GREEN);
-		display.drawLine(270, 140, 268, 142, GREEN);
-		display.drawLine(277, 148, 274, 150, GREEN);
-		display.drawLine(280, 152, 277, 154, GREEN);
-		display.drawLine(283, 156, 280, 158, GREEN);
-		display.drawLine(286, 161, 283, 162, GREEN);
-		display.drawLine(291, 170, 288, 171, GREEN);
-		display.drawLine(293, 174, 290, 175, GREEN);
-		display.drawLine(295, 179, 292, 180, GREEN);
-		display.drawLine(297, 184, 294, 185, GREEN);
-		display.drawLine(301, 193, 298, 194, GREEN);
-		display.drawLine(302, 198, 299, 199, GREEN);
-		display.drawLine(304, 203, 301, 204, GREEN);
-		display.drawLine(305, 208, 302, 209, GREEN);
-		display.drawLine(307, 218, 304, 219, GREEN);
-		display.drawLine(307, 224, 304, 224, GREEN);
-		display.drawLine(308, 229, 305, 229, GREEN);
-		display.drawLine(308, 234, 305, 234, GREEN);
+			if (i % 5 == 0) {
+				drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 140, GREEN);
+				continue;
+			}
+			drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 145, GREEN);
+		}
 	}
 
 	// Print out the data cells data.
@@ -1021,42 +951,23 @@ void displaySpeedScreen() {
 	display.setTextSize(1);
 	display.setTextColor(GREEN);
 
-	display.setCursor(40, 194); display.print(10);
-	display.setCursor(62, 157); display.print(20);
-	display.setCursor(92, 128); display.print(30);
+	display.setCursor(40, 194);  display.print(10);
+	display.setCursor(62, 157);  display.print(20);
+	display.setCursor(92, 128);  display.print(30);
 	display.setCursor(133, 113); display.print(40);
 	display.setCursor(176, 113); display.print(50);
 	display.setCursor(217, 128); display.print(60);
 	display.setCursor(247, 157); display.print(70);
 	display.setCursor(269, 194); display.print(80);
-	display.drawLine(160,
-	                 239,
-	                 (160 + (130 * cos(oldMappedSpeed * 1000.0 / 57296.0))),
-	                 (239 + (130 * sin(oldMappedSpeed * 1000.0 / 57296.0))),
-	                 BLACK);
-	display.drawLine(160,239, (160 + (130 * cos(mappedSpeed * 1000.0 / 57296.0))), (239 + (130 * sin(mappedSpeed * 1000.0 / 57296.0))), RED);
 
-	display.drawLine((160 + (160 * cos(oldMappedMaxSpeed * 1000.0 / 57296.0))),
-	                 (239 + (160 * sin(oldMappedMaxSpeed * 1000.0 / 57296.0))),
-	                 (160 + (151 * cos(oldMappedMaxSpeed * 1000.0 / 57296.0))),
-	                 (239 + (151 * sin(oldMappedMaxSpeed * 1000.0 / 57296.0))),
-	                 BLACK);
-	display.drawLine((160 + (160 * cos(mappedMaxSpeed * 1000.0 / 57296.0))),
-	                 (239 + (160 * sin(mappedMaxSpeed * 1000.0 / 57296.0))),
-	                 (160 + (151 * cos(mappedMaxSpeed * 1000.0 / 57296.0))),
-	                 (239 + (151 * sin(mappedMaxSpeed * 1000.0 / 57296.0))),
-	                 RED);
+	drawCircleLine(oldMappedSpeed, 160, 239, 0, 130, BLACK);
+	drawCircleLine(mappedSpeed,    160, 239, 0, 130, RED);
 
-	display.drawLine((160 + (160 * cos(oldMappedAvgSpeed * 1000.0 / 57296.0))),
-	                 (239 + (160 * sin(oldMappedAvgSpeed * 1000.0 / 57296.0))),
-	                 (160 + (151 * cos(oldMappedAvgSpeed * 1000.0 / 57296.0))),
-	                 (239 + (151 * sin(oldMappedAvgSpeed * 1000.0 / 57296.0))),
-	                 BLACK);
-	display.drawLine((160 + (160 * cos(mappedAvgSpeed * 1000.0 / 57296.0))),
-	                 (239 + (160 * sin(mappedAvgSpeed * 1000.0 / 57296.0))),
-	                 (160 + (151 * cos(mappedAvgSpeed * 1000.0 / 57296.0))),
-	                 (239 + (151 * sin(mappedAvgSpeed * 1000.0 / 57296.0))),
-	                 BLUE);
+	drawCircleLine(oldMappedMaxSpeed, 160, 239, 160, 151, BLACK);
+	drawCircleLine(mappedMaxSpeed,    160, 239, 160, 151, RED);
+
+	drawCircleLine(oldMappedAvgSpeed, 160, 239, 160, 151, BLACK);
+	drawCircleLine(mappedAvgSpeed,    160, 239, 160, 151, RED);
 
 	oldMappedMaxSpeed = mappedMaxSpeed;
 	oldMappedAvgSpeed = mappedAvgSpeed;
@@ -1155,6 +1066,7 @@ void logPointToFile(DeviceAddress tempSensor) {
 	}
 	logfile.flush();
 }
+
 double distanceBetweenPoints(double lat1, double lat2, double lon1, double lon2) {
 	int R = 6371; // km
 	double dLat = (lat2-lat1)*PI/180;
@@ -1314,6 +1226,7 @@ void loop() {
 
 		// Rad. lets log it!
 		if (GPS.fix && strstr(stringptr, "RMC")){
+			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
 			logPointToFile(tempDeviceAddress);
 			if (oldLat != NULL && oldLon != NULL) {
 				totalDistance += distanceBetweenPoints(oldLat,GPS.latitudeDegrees,oldLon,GPS.longitudeDegrees);
