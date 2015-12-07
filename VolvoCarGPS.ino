@@ -226,199 +226,13 @@ const unsigned char  PROGMEM volvo_2 [] = {
 	B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000
 };
 
-void useInterrupt(boolean);
-
-uint8_t parseHex(char c) {
-	if (c < '0')
-		return 0;
-	if (c <= '9')
-		return c - '0';
-	if (c < 'A')
-		return 0;
-	if (c <= 'F')
-		return (c - 'A')+10;
-}
-
-// blink out an error code
-void error(uint8_t errno) {
-	/*
-	 if (SD.errorCode()) {
-	 putstring("SD error: ");
-	 Serial.print(card.errorCode(), HEX);
-	 Serial.print(',');
-	 Serial.println(card.errorData(), HEX);
-	 }
-	 */
-	int i = 0;
-	while(1) {
-		//display.invertDisplay(i%2);
-		delay(500);
-		i++;
-	}
-}
-String getDirection(double angle) {
-	if(angle >= 337 && angle <= 360) return "N";
-	if(angle >= 0   && angle < 22)   return "N";
-	if(angle >= 67  && angle < 112)  return "E";
-	if(angle >= 157 && angle < 202)  return "S";
-	if(angle >= 247 && angle < 292)  return "W";
-	if(angle >= 22  && angle < 67)   return "NE";
-	if(angle >= 112 && angle < 157)  return "SE";
-	if(angle >= 202 && angle < 247)  return "SW";
-	if(angle >= 292 && angle < 337)  return "NW";
-}
-
-void setup() {
-	Serial.begin(115200);
-	display.reset();
-	display.begin(display.readID());
-	display.setRotation(1);
-	display.fillScreen(BLACK);
-	display.drawBitmap(96, 40, volvo_2, 128, 128, GREY);
-	printCenteredText("Initializing...", 2, WHITE, 320, 0, 188);
-	sensors.begin();
-	ts.begin();
-	pinMode(LEDPIN, OUTPUT);
-
-	// make sure that the default chip select pin is set to
-	// output, even if you don't use it:
-	pinMode(10, OUTPUT);
-	pinMode(DISPLAYBUTTON, OUTPUT);
-	// see if the card is present and can be initialized:
-	if (!SD.begin(CHIPSELECT, 11, 12, 13)) {
-		Serial.println("Card init. failed!");
-		display.fillScreen(BLACK);
-		display.setTextColor(RED);
-		display.setTextSize(5);
-		display.setCursor(88,71);
-		display.println("ERROR");
-		display.setTextSize(2);
-		display.setCursor(41,117);
-		display.println("SD card not found or");
-		display.setCursor(77,136);
-		display.println("it couldn't be");
-		display.setCursor(89,155);
-		display.println("initialized.");
-		error(2);
-	}
-	// display.clearDisplay();
-	// display.setTextSize(1);
-	// display.setTextColor(WHITE);
-	// display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
-	// display.setCursor(17,50);
-	printCenteredText("Creating file...", 2, WHITE, 320, 0, 188);
-	// display.display();
-
-	char filename[15];
-	strcpy(filename, "LOG0000.csv");
-	for (uint8_t i = 0; i < 10000; i++) {
-		filename[3] = '0' + (i/1000)%10;
-		filename[4] = '0' + (i/100)%10;
-		filename[5] = '0' + (i/10)%10;
-		filename[6] = '0' + i%10;
-
-		// create if does not exist, do not open existing, write, sync after write
-		if (! SD.exists(filename)) {
-			Serial.print(filename);
-			Serial.println(" doesn't exist");
-			break;
-		}
-		logs = i+1;
-	}
-
-	logfile = SD.open(filename, FILE_WRITE);
-	if(!logfile) {
-		Serial.print("Couldnt create ");
-		Serial.println(filename);
-		display.fillScreen(BLACK);
-		display.setTextColor(RED);
-		display.setTextSize(5);
-		display.setCursor(88,81);
-		display.println("ERROR");
-		display.setTextSize(2);
-		display.setCursor(95,127);
-		display.println(filename);
-		display.setCursor(47,146);
-		display.println("couldn't be created");
-		error(3);
-
-	}
-	// display.clearDisplay();
-	// display.setTextSize(1);
-	// display.setTextColor(WHITE);
-	// display.drawBitmap(0, 20, volvo, 128, 17, WHITE);
-	// display.setCursor(21,50);
-	// display.println("Starting GPS...");
-	// display.display();
-	// connect to the GPS at the desired rate
-
-	printCenteredText("Starting GPS...", 2, WHITE, 320, 0, 188);
-	GPS.begin(9600);
-	delay(1000);
-	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-	// uncomment this line to turn on only the "minimum recommended" data
-	//GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-	// For logging data, we don't suggest using anything but either RMC only or RMC+GGA
-	// to keep the log files at a reasonable size
-	// Set the update rate
-	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
-
-	// Turn off updates on antenna status, if the firmware permits it
-	GPS.sendCommand(PGCMD_NOANTENNA);
-
-	// the nice thing about this code is you can have a timer0 interrupt go off
-	// every 1 millisecond, and read data from the GPS for you. that makes the
-	// loop code a heck of a lot easier!
-	useInterrupt(true);
-	display.fillScreen(BLACK);
-
-}
-// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
-SIGNAL(TIMER0_COMPA_vect) {
-	char c = GPS.read();
-	// if you want to debug, this is a good time to do it!
-#ifdef UDR0
-	if (GPSECHO)
-		if (c) UDR0 = c;
-	// writing direct to UDR0 is much much faster than Serial.print
-	// but only one character can be written at a time.
-#endif
-}
-
-void useInterrupt(boolean v) {
-	if (v) {
-		// Timer0 is already used for millis() - we'll just interrupt somewhere
-		// in the middle and call the "Compare A" function above
-		OCR0A = 0xAF;
-		TIMSK0 |= _BV(OCIE0A);
-		usingInterrupt = true;
-	} else {
-		// do not call the interrupt function COMPA anymore
-		TIMSK0 &= ~_BV(OCIE0A);
-		usingInterrupt = false;
-	}
-}
-//
-
 void printCenteredText(String text, int textSize, int color, int areaWidth, int offset, int y) {
-	Serial.print(text);
-	Serial.print(" - ");
-	Serial.println(text.length());
 	int x = (areaWidth-(text.length()*textSize*5+textSize*(text.length()-1)))/2+offset;
 	display.setTextSize(textSize);
 	display.setCursor(x,y);
 	display.setTextColor(color);
-	display.fillRect(offset+1,y,areaWidth-2,textSize*8,BLACK);
+	display.fillRect(offset+1,y,areaWidth-2,textSize*8, BLACK);
 	display.print(text);
-}
-
-// Printers.
-
-void printAngle() {
-	// if      (round(GPS.angle) < 10)  display.print("00");
-	// else if (round(GPS.angle) < 100) display.print("0");
-	// display.print(GPS.angle,0);
 }
 
 struct DisplayDate {
@@ -431,8 +245,9 @@ struct DisplayDate {
 		this->hr  = hr;
 		this->min = min;
 		this->sec = sec;
-    this->mil = mil;
+		this->mil = mil;
 	}
+
 	void updateDate(int yr, int mth, int day, int hr, int min, int sec, int mil) {
 		this->yr  = yr;
 		this->mth = mth;
@@ -440,8 +255,9 @@ struct DisplayDate {
 		this->hr  = hr;
 		this->min = min;
 		this->sec = sec;
-    this->mil = mil;
+		this->mil = mil;
 	}
+
 	String getDate() {
 		String date;
 		this->day < 10 ? date.concat("0"):false;
@@ -454,6 +270,7 @@ struct DisplayDate {
 		date.concat(String(yr));
 		return date;
 	}
+
 	String getTime() {
 		String date;
 		this->hr < 10 ? date.concat("0"):false;
@@ -466,179 +283,58 @@ struct DisplayDate {
 		date.concat(String(sec));
 		return date;
 	}
+
+	String getISOTimestamp() {
+		String isoDate;
+		isoDate.concat("20");
+		if (this->yr < 10) isoDate.concat('0');
+		isoDate.concat(this->yr);
+		isoDate += "-";
+
+		if (this->mth < 10) isoDate.concat('0');
+		isoDate.concat(this->mth);
+		isoDate.concat('-');
+
+		if (this->day < 10) isoDate.concat('0');
+		isoDate.concat(this->day);
+
+		isoDate.concat('T');
+
+		if (this->hr < 10) isoDate.concat('0');
+		isoDate.concat(this->hr);
+		isoDate.concat(':');
+
+		if (this->min < 10) isoDate.concat('0');
+		isoDate.concat(this->min);
+		isoDate.concat(':');
+
+		if (this->sec < 10) isoDate.concat('0');
+		isoDate.concat(this->sec);
+		isoDate.concat('.');
+
+		isoDate.concat(this->mil);
+		isoDate.concat('Z');
+		return isoDate;
+	}
 };
 DisplayDate newDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
 DisplayDate oldDate(0,0,0,0,0,0,0);
-void printDate() {
-	if(GPS.day < 10) {
-		display.print("0");
-		display.print(GPS.day);
-	}
-	else {
-		display.print(GPS.day);
-	}
 
-	display.print(".");
-
-	if(GPS.month < 10) {
-		display.print("0");
-		display.print(GPS.month);
-	}
-	else {
-		display.print(GPS.month);
-	}
-
-	display.print(".20");
-
-	if(GPS.year < 10){
-		display.print("0");
-		display.print(GPS.year, DEC);
-	}
-	else {
-		display.print(GPS.year, DEC);
-	}
-}
-void printTime(){
-	if(GPS.hour < 10){
-		display.print("0");
-		display.print(GPS.hour);
-	}
-	else {
-		display.print(GPS.hour);
-	}
-	display.print(":");
-	if (GPS.minute < 10){
-		display.print("0");
-		display.print(GPS.minute);
-	}
-	else {
-		display.print(GPS.minute);
-	}
-	display.print(":");
-	if(GPS.seconds < 10){
-		display.print("0");
-		display.print(GPS.seconds);
-	}
-	else {
-		display.print(GPS.seconds);
-	}
-}
-int asdf = 0;
-void printTopBar() {
-	newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
-	display.setTextColor(BLACK);
-	display.setTextSize(2);
-	if (asdf == 0)
-	{
-		display.setCursor(3,3);
-		display.fillRect(0, 0, 320, 20, GREEN);
-		printDate();
-		display.print("        ");
-		printTime();
-		asdf++;
-	} else {
-		display.setTextSize(2);
-		if (oldDate.day != newDate.day)
-		{
-			display.fillRect(3,3,10,14, GREEN);
-			display.fillRect(15,3,10,14, GREEN);
-			display.setCursor(3,3);
-			if(GPS.day < 10){
-				display.print("0");
-				display.print(GPS.day);
-			} else {
-				display.print(GPS.day);
-			}
-		}
-
-		if (oldDate.mth != newDate.mth)
-		{
-			display.fillRect(39,3,10,14, GREEN);
-			display.fillRect(51,3,10,14, GREEN);
-			display.setCursor(39,3);
-			if(GPS.month < 10){
-				display.print("0");
-				display.print(GPS.month);
-			} else {
-				display.print(GPS.month);
-			}
-		}
-
-
-		if (oldDate.yr != newDate.yr)
-		{
-			display.fillRect(99,3,10,14, GREEN);
-			display.fillRect(111,3,10,14, GREEN);
-			display.setCursor(99,3);
-			if(GPS.year < 10){
-				display.print("0");
-				display.print(GPS.year, DEC);
-			} else {
-				display.print(GPS.year, DEC);
-			}
-		}
-
-		if (oldDate.hr != newDate.hr)
-		{
-			display.fillRect(219,3,10,14, GREEN);
-			display.fillRect(231,3,10,14, GREEN);
-			display.setCursor(219,3);
-			if(GPS.hour < 10){
-				display.print("0");
-				display.print(GPS.hour);
-			} else {
-				display.print(GPS.hour);
-			}
-		}
-
-		if (oldDate.min != newDate.min)
-		{
-			display.fillRect(255,3,10,14, GREEN);
-			display.fillRect(267,3,10,14, GREEN);
-			display.setCursor(255,3);
-			if(GPS.minute < 10){
-				display.print("0");
-				display.print(GPS.minute);
-			} else {
-				display.print(GPS.minute);
-			}
-		}
-
-		if (oldDate.sec != newDate.sec || oldDate.mil != newDate.mil)
-		{
-			display.fillRect(291,3,10,14, GREEN);
-			display.fillRect(303,3,10,14, GREEN);
-			display.setCursor(291,3);
-      int addSecs = GPS.seconds;
-      if (GPS.milliseconds >= 500) addSecs++;
-			if (addSecs < 10){
-				display.print("0");
-				display.print(addSecs);
-			} else {
-				display.print(addSecs);
-			}
-		}
-
-	}
-
-	oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec, newDate.mil);
-}
 struct GPS_Status
 {
-  int fix;
-  double lat, lon;
-  GPS_Status(int fix, double lat, double lon) {
-    this->fix = fix;
-    this->lat = lat;
-    this->lon = lon;
-  }
-  void updateStatus(int fix, double lat, double lon) {
-    this->fix = fix;
-    this->lat = lat;
-    this->lon = lon;
-  }
+	int fix;
+	double lat, lon;
+	GPS_Status(int fix, double lat, double lon) {
+		this->fix = fix;
+		this->lat = lat;
+		this->lon = lon;
+	}
+	void updateStatus(int fix, double lat, double lon) {
+		this->fix = fix;
+		this->lat = lat;
+		this->lon = lon;
+	}
 };
-
 GPS_Status newGpsStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
 GPS_Status oldGpsStatus(-1, 0, 0);
 
@@ -665,7 +361,6 @@ class SummaryScreen {
 
 		this->oldSpeed = speed;
 		this->oldAcceleration = acceleration;
-
 	}
 
 	void displayDirection(double angle) {
@@ -736,8 +431,6 @@ class SummaryScreen {
 			printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
 		}
 		this->oldHdop = hdop;
-
-
 	}
 
 	void displayLogsAndPoints(int logNumber, int point) {
@@ -817,8 +510,362 @@ class SummaryScreen {
 		refresh = false;
 	}
 };
-
 SummaryScreen summaryScreen;
+
+class DirectionScreen {
+	bool refresh;
+	float oldAngle, oldSpeed, oldAltitude;
+	String oldDirection;
+	void displayDataFieldOutlines() {
+		// Upper Horizontal Lines
+		display.drawLine(0,   60, 80, 60,  GREEN);
+		display.drawLine(240, 60, 320, 60, GREEN);
+
+		// Upper Vertical Lines
+		display.drawLine(80,20,80,60,GREEN);
+		display.drawLine(240,20,240,60,GREEN);
+
+		// Lower Horizontal Lines
+		display.drawLine(0,200,80,200,GREEN);
+		display.drawLine(240,200,320,200,GREEN);
+
+		// Lower Vertical Lines
+		display.drawLine(80,200,80,240,GREEN);
+		display.drawLine(240,200,240,240,GREEN);
+	}
+
+	void displayDirection(float angle) {
+		if (this->refresh) {
+			printCenteredText("DIRECTION", 1, GREEN, 80, 0,   24);
+		}
+
+		String dir = getDirection(angle);
+		if (this->oldDirection != dir || this->refresh) {
+			printCenteredText(dir, 2, GREEN, 80, 0, 38);
+		}
+		this->oldDirection = dir;
+	}
+
+	void displayAngle(float angle) {
+		if (this->refresh) {
+			printCenteredText("ANGLE", 1, GREEN, 80, 240, 24);
+		}
+
+		if (oldAngle != angle || this->refresh) {
+			printCenteredText(String(angle,1), 2, GREEN, 80, 240, 38);
+		}
+
+		this->oldAngle = angle;
+	}
+
+	void displaySpeed(float speed) {
+		if (this->refresh) {
+			printCenteredText("SPEED", 1, GREEN, 80, 0,   205);
+		}
+
+		if (oldSpeed != speed || this->refresh) {
+			printCenteredText(String(speed,2),    2, GREEN, 80, 0,   219);
+		}
+
+		this->oldSpeed = speed;
+	}
+
+	void displayAltitude(float altitude) {
+		if (this->refresh) {
+			printCenteredText("ALTITUDE",  1, GREEN, 80, 240, 205);
+		}
+
+		if (oldAltitude != altitude || this->refresh) {
+			printCenteredText(String(altitude,2), 2, GREEN, 80, 240, 219);
+		}
+
+		this->oldAltitude = altitude;
+	}
+
+	void displayCompassOutline() {
+		display.drawCircle(160, 130, 100, GREEN);
+
+		display.drawLine  (259, 130, 250, 130, GREEN);
+		display.drawLine  (230, 200, 224, 194, GREEN);
+		display.drawLine  (160, 229, 160, 220, GREEN);
+		display.drawLine  (90,  200, 96,  194, GREEN);
+		display.drawLine  (61,  130, 70,  130, GREEN);
+		display.drawLine  (90,  60,  96,  66,  GREEN);
+		display.drawLine  (160, 31,  160, 40,  GREEN);
+		display.drawLine  (230, 60,  224, 66,  GREEN);
+		display.drawLine  (259, 130, 250, 130, GREEN);
+	}
+
+	void displayCompassDirection(float angle) {
+
+		if (oldAngle != angle || this->refresh) {
+			display.drawLine(160,
+			                 130,
+			                (160 + (90 * cos((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
+			                (130 + (90 * sin((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
+			                 BLACK);
+
+			display.drawLine(160,
+			                 130,
+			                (160 + (90 * cos((angle * 1000.0 / 57296.0)-(PI/2)))),
+			                (130 + (90 * sin((angle * 1000.0 / 57296.0)-(PI/2)))),
+			                 RED);
+		}
+		oldAngle = angle;
+	}
+
+	public:
+	void displayScreen(bool refresh) {
+		this->refresh = refresh;
+
+		if (this->refresh) {
+			displayDataFieldOutlines();
+			displayCompassOutline();
+		}
+		// Not the best solution.
+		displayCompassDirection(GPS.angle);
+		displayDirection(GPS.angle);
+		displayAngle(GPS.angle);
+		displaySpeed(GPS.speed*1.852);
+		displayAltitude(GPS.altitude);
+	}
+};
+DirectionScreen directionScreen;
+
+void useInterrupt(boolean);
+
+uint8_t parseHex(char c) {
+	if (c < '0')
+		return 0;
+	if (c <= '9')
+		return c - '0';
+	if (c < 'A')
+		return 0;
+	if (c <= 'F')
+		return (c - 'A')+10;
+}
+
+// blink out an error code
+void error() {
+	while(1) {
+		delay(5000);
+	}
+}
+String getDirection(double angle) {
+	if(angle >= 337 && angle <= 360) return "N";
+	if(angle >= 0   && angle < 22)   return "N";
+	if(angle >= 67  && angle < 112)  return "E";
+	if(angle >= 157 && angle < 202)  return "S";
+	if(angle >= 247 && angle < 292)  return "W";
+	if(angle >= 22  && angle < 67)   return "NE";
+	if(angle >= 112 && angle < 157)  return "SE";
+	if(angle >= 202 && angle < 247)  return "SW";
+	if(angle >= 292 && angle < 337)  return "NW";
+}
+
+void setup() {
+	Serial.begin(115200);
+	display.reset();
+	display.begin(display.readID());
+	display.setRotation(1);
+	display.fillScreen(BLACK);
+	display.drawBitmap(96, 40, volvo_2, 128, 128, GREY);
+	printCenteredText("Initializing...", 2, WHITE, 320, 0, 188);
+	sensors.begin();
+	ts.begin();
+	pinMode(LEDPIN, OUTPUT);
+
+	// make sure that the default chip select pin is set to
+	// output, even if you don't use it:
+	pinMode(CHIPSELECT, OUTPUT);
+	pinMode(DISPLAYBUTTON, OUTPUT);
+	// see if the card is present and can be initialized:
+	if (!SD.begin(CHIPSELECT, 11, 12, 13)) {
+		display.fillScreen(BLACK);
+
+		printCenteredText("ERROR", 5, RED, 320, 0, 71);
+		printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
+		printCenteredText("it couldn't be", 2, RED, 320, 0, 136);
+		printCenteredText("initialized.", 2, RED, 320, 0, 155);
+		error();
+	}
+	printCenteredText("Creating file...", 2, WHITE, 320, 0, 188);
+
+	char filename[15];
+	strcpy(filename, "LOG0000.csv");
+	for (uint8_t i = 0; i < 10000; i++) {
+		filename[3] = '0' + (i/1000)%10;
+		filename[4] = '0' + (i/100)%10;
+		filename[5] = '0' + (i/10)%10;
+		filename[6] = '0' + i%10;
+
+		// create if does not exist, do not open existing, write, sync after write
+		if (! SD.exists(filename)) {
+			Serial.print(filename);
+			Serial.println(" doesn't exist");
+			break;
+		}
+		logs = i+1;
+	}
+
+	logfile = SD.open(filename, FILE_WRITE);
+	if(!logfile) {
+		display.fillScreen(BLACK);
+
+		printCenteredText("ERROR", 5, RED, 320, 0, 71);
+		printCenteredText(filename, 2, RED, 320, 0, 117);
+		printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
+		error();
+	}
+
+	printCenteredText("Starting GPS...", 2, WHITE, 320, 0, 188);
+	GPS.begin(9600);
+	delay(1000);
+	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
+	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+	// uncomment this line to turn on only the "minimum recommended" data
+	//GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+	// For logging data, we don't suggest using anything but either RMC only or RMC+GGA
+	// to keep the log files at a reasonable size
+	// Set the update rate
+	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
+
+	// Turn off updates on antenna status, if the firmware permits it
+	GPS.sendCommand(PGCMD_NOANTENNA);
+
+	// the nice thing about this code is you can have a timer0 interrupt go off
+	// every 1 millisecond, and read data from the GPS for you. that makes the
+	// loop code a heck of a lot easier!
+	useInterrupt(true);
+	display.fillScreen(BLACK);
+
+}
+// Interrupt is called once a millisecond, looks for any new GPS data, and stores it
+SIGNAL(TIMER0_COMPA_vect) {
+	char c = GPS.read();
+	// if you want to debug, this is a good time to do it!
+#ifdef UDR0
+	if (GPSECHO)
+		if (c) UDR0 = c;
+	// writing direct to UDR0 is much much faster than Serial.print
+	// but only one character can be written at a time.
+#endif
+}
+
+void useInterrupt(boolean v) {
+	if (v) {
+		// Timer0 is already used for millis() - we'll just interrupt somewhere
+		// in the middle and call the "Compare A" function above
+		OCR0A = 0xAF;
+		TIMSK0 |= _BV(OCIE0A);
+		usingInterrupt = true;
+	} else {
+		// do not call the interrupt function COMPA anymore
+		TIMSK0 &= ~_BV(OCIE0A);
+		usingInterrupt = false;
+	}
+}
+
+bool firstIteration = true;
+void printTopBar() {
+	newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+	display.setTextColor(BLACK);
+	display.setTextSize(2);
+	if (firstIteration)
+	{
+		display.setCursor(3,3);
+		display.fillRect(0, 0, 320, 20, GREEN);
+		display.print(newDate.getDate());
+		display.print("        ");
+		display.print(newDate.getTime());
+		firstIteration = false;
+	} else {
+		display.setTextSize(2);
+		if (oldDate.day != newDate.day)
+		{
+			display.fillRect(3,3,10,14, GREEN);
+			display.fillRect(15,3,10,14, GREEN);
+			display.setCursor(3,3);
+			if(GPS.day < 10){
+				display.print("0");
+				display.print(GPS.day);
+			} else {
+				display.print(GPS.day);
+			}
+		}
+
+		if (oldDate.mth != newDate.mth)
+		{
+			display.fillRect(39,3,10,14, GREEN);
+			display.fillRect(51,3,10,14, GREEN);
+			display.setCursor(39,3);
+			if(GPS.month < 10){
+				display.print("0");
+				display.print(GPS.month);
+			} else {
+				display.print(GPS.month);
+			}
+		}
+
+		if (oldDate.yr != newDate.yr)
+		{
+			display.fillRect(99,3,10,14, GREEN);
+			display.fillRect(111,3,10,14, GREEN);
+			display.setCursor(99,3);
+			if(GPS.year < 10){
+				display.print("0");
+				display.print(GPS.year, DEC);
+			} else {
+				display.print(GPS.year, DEC);
+			}
+		}
+
+		if (oldDate.hr != newDate.hr)
+		{
+			display.fillRect(219,3,10,14, GREEN);
+			display.fillRect(231,3,10,14, GREEN);
+			display.setCursor(219,3);
+			if(GPS.hour < 10){
+				display.print("0");
+				display.print(GPS.hour);
+			} else {
+				display.print(GPS.hour);
+			}
+		}
+
+		if (oldDate.min != newDate.min)
+		{
+			display.fillRect(255,3,10,14, GREEN);
+			display.fillRect(267,3,10,14, GREEN);
+			display.setCursor(255,3);
+			if(GPS.minute < 10){
+				display.print("0");
+				display.print(GPS.minute);
+			} else {
+				display.print(GPS.minute);
+			}
+		}
+
+		if (oldDate.sec != newDate.sec || oldDate.mil != newDate.mil)
+		{
+			display.fillRect(291,3,10,14, GREEN);
+			display.fillRect(303,3,10,14, GREEN);
+			display.setCursor(291,3);
+      int addSecs = GPS.seconds;
+      if (GPS.milliseconds >= 500) addSecs++;
+			if (addSecs < 10){
+				display.print("0");
+				display.print(addSecs);
+			} else {
+				display.print(addSecs);
+			}
+		}
+
+	}
+
+	oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec, newDate.mil);
+}
+
 float oldMappedSpeed = NULL;
 float oldMappedMaxSpeed = NULL;
 float oldMappedAvgSpeed = 40;
@@ -1005,129 +1052,6 @@ void displaySpeedScreen() {
 	refresh = false;
 }
 
-class DirectionScreen {
-	bool refresh;
-	float oldAngle, oldSpeed, oldAltitude;
-	String oldDirection;
-	void displayDataFieldOutlines() {
-		// Upper Horizontal Lines
-		display.drawLine(0,   60, 80, 60,  GREEN);
-		display.drawLine(240, 60, 320, 60, GREEN);
-
-		// Upper Vertical Lines
-		display.drawLine(80,20,80,60,GREEN);
-		display.drawLine(240,20,240,60,GREEN);
-
-		// Lower Horizontal Lines
-		display.drawLine(0,200,80,200,GREEN);
-		display.drawLine(240,200,320,200,GREEN);
-
-		// Lower Vertical Lines
-		display.drawLine(80,200,80,240,GREEN);
-		display.drawLine(240,200,240,240,GREEN);
-	}
-
-
-
-	void displayDirection(float angle) {
-		if (this->refresh) {
-			printCenteredText("DIRECTION", 1, GREEN, 80, 0,   24);
-		}
-
-		String dir = getDirection(angle);
-		if (this->oldDirection != dir || this->refresh) {
-			printCenteredText(dir, 2, GREEN, 80, 0, 38);
-		}
-		this->oldDirection = dir;
-	}
-
-	void displayAngle(float angle) {
-		if (this->refresh) {
-			printCenteredText("ANGLE", 1, GREEN, 80, 240, 24);
-		}
-
-		if (oldAngle != angle || this->refresh) {
-			printCenteredText(String(angle,1), 2, GREEN, 80, 240, 38);
-		}
-
-		this->oldAngle = angle;
-	}
-
-	void displaySpeed(float speed) {
-		if (this->refresh) {
-			printCenteredText("SPEED", 1, GREEN, 80, 0,   205);
-		}
-
-		if (oldSpeed != speed || this->refresh) {
-			printCenteredText(String(speed,2),    2, GREEN, 80, 0,   219);
-		}
-
-		this->oldSpeed = speed;
-	}
-
-	void displayAltitude(float altitude) {
-		if (this->refresh) {
-			printCenteredText("ALTITUDE",  1, GREEN, 80, 240, 205);
-		}
-
-		if (oldAltitude != altitude || this->refresh) {
-			printCenteredText(String(altitude,2), 2, GREEN, 80, 240, 219);
-		}
-
-		this->oldAltitude = altitude;
-	}
-
-	void displayCompassOutline() {
-		display.drawCircle(160, 130, 100, GREEN);
-
-		display.drawLine  (259, 130, 250, 130, GREEN);
-		display.drawLine  (230, 200, 224, 194, GREEN);
-		display.drawLine  (160, 229, 160, 220, GREEN);
-		display.drawLine  (90,  200, 96,  194, GREEN);
-		display.drawLine  (61,  130, 70,  130, GREEN);
-		display.drawLine  (90,  60,  96,  66,  GREEN);
-		display.drawLine  (160, 31,  160, 40,  GREEN);
-		display.drawLine  (230, 60,  224, 66,  GREEN);
-		display.drawLine  (259, 130, 250, 130, GREEN);
-	}
-
-	void displayCompassDirection(float angle) {
-
-		if (oldAngle != angle || this->refresh) {
-			display.drawLine(160,
-			                 130,
-			                (160 + (90 * cos((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
-			                (130 + (90 * sin((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
-			                 BLACK);
-
-			display.drawLine(160,
-			                 130,
-			                (160 + (90 * cos((angle * 1000.0 / 57296.0)-(PI/2)))),
-			                (130 + (90 * sin((angle * 1000.0 / 57296.0)-(PI/2)))),
-			                 RED);
-		}
-		oldAngle = angle;
-	}
-
-	public:
-	void displayScreen(bool refresh) {
-		this->refresh = refresh;
-
-		if (this->refresh) {
-			displayDataFieldOutlines();
-			displayCompassOutline();
-		}
-		// Not the best solution.
-		displayCompassDirection(GPS.angle);
-		displayDirection(GPS.angle);
-		displayAngle(GPS.angle);
-		displaySpeed(GPS.speed*1.852);
-		displayAltitude(GPS.altitude);
-
-	}
-};
-DirectionScreen directionScreen;
-
 void displayTemperatureScreen() {
 	if (refresh)
 	{
@@ -1191,60 +1115,17 @@ void displayLocation() {
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
-	if(logfile.print("20") == 0) {
-		Serial.println("couldnt log to file!");
+	if(logfile.print(newDate.getISOTimestamp()) == 0) {
 		display.fillScreen(BLACK);
 
 		printCenteredText("ERROR", 5, RED, 320, 0, 71);
 		printCenteredText("Couldn't write to", 2, RED, 320, 0, 117);
 		printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
 		printCenteredText("been removed.", 2, RED, 320, 0, 155);
-		error(2);
-	}
-	logfile.print(GPS.year);
-	logfile.print('-');
 
-	if (GPS.month >= 10) {
-		logfile.print(GPS.month);
-		logfile.print('-');
-	} else {
-		logfile.print('0');
-		logfile.print(GPS.month);
-		logfile.print('-');
+		error();
 	}
 
-	if (GPS.day >= 10)    {
-		logfile.print(GPS.day);
-	} else {
-		logfile.print('0');
-		logfile.print(GPS.day);
-	}
-
-	logfile.print('T');
-
-	if (GPS.hour >= 10)    {
-		logfile.print(GPS.hour), logfile.print(':');
-	}
-	else {
-		logfile.print('0'), logfile.print(GPS.hour), logfile.print(':');
-	}
-
-	if (GPS.minute >= 10)    {
-		logfile.print(GPS.minute), logfile.print(':');
-	}
-	else {
-		logfile.print('0'), logfile.print(GPS.minute), logfile.print(':');
-	}
-
-	if (GPS.seconds >= 10)    {
-		logfile.print(GPS.seconds), logfile.print('.');
-	}
-	else {
-		logfile.print('0'), logfile.print(GPS.seconds), logfile.print('.');
-	}
-
-	logfile.print(GPS.milliseconds);
-	logfile.print('Z');
 	logfile.print(';');
 
 	logfile.print(GPS.latitudeDegrees,14);
@@ -1255,22 +1136,20 @@ void logPointToFile(DeviceAddress tempSensor) {
 
 	logfile.print(GPS.altitude,14);
 	if(logfile.print(';') == 0) {
-		Serial.println("ERROR");
 		display.fillScreen(BLACK);
 		printCenteredText("ERROR",               5, RED, 320, 0, 71);
 		printCenteredText("Couldn't write to",   2, RED, 320, 0, 117);
 		printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
 		printCenteredText("been removed.",       2, RED, 320, 0, 155);
 
-		error(2);
+		error();
 	}
 	if(sensors.getAddress(tempDeviceAddress, 0)) {
-	  double temp = sensors.getTempC(tempSensor);
-	  if (temp < minTemp) minTemp = temp;
-	  if (temp > maxTemp) maxTemp = temp;
-	  logfile.println(temp);
-	}
-	else {
+		double temp = sensors.getTempC(tempSensor);
+		if (temp < minTemp) minTemp = temp;
+		if (temp > maxTemp) maxTemp = temp;
+		logfile.println(temp);
+	} else {
 		logfile.println("NULL");
 	}
 	logfile.flush();
@@ -1309,11 +1188,6 @@ void loop() {
 		hasBeenPressed = true;
 
 		TS_Point p = ts.getPoint();
-		Serial.print("(");
-		Serial.print(p.x);
-		Serial.print(", ");
-		Serial.print(p.y);
-		Serial.println(")");
 
 		if (currentScreen != 0)
 		{
@@ -1436,8 +1310,6 @@ void loop() {
 		// display.fillScreen(BLACK);
 		// printTopBar();
 		double potPos = analogRead(0);
-		//Serial.print (potPos); Serial.print(" - ");
-		//if (potPos == 1023)                 {display.clearDisplay(); display.display();}
 
 		// Rad. lets log it!
 		if (GPS.fix && strstr(stringptr, "RMC")){
