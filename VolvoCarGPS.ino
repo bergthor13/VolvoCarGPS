@@ -360,6 +360,7 @@ class Screen {
 	bool refresh;
 	virtual void displayScreen(bool);
 };
+Screen*           screens[9];
 
 class SummaryScreen: public Screen {
 
@@ -368,11 +369,11 @@ class SummaryScreen: public Screen {
 	String oldDirection;
 
 	void displaySpeed(float speed) {
-		if (refresh) {
+		if (this->refresh) {
 			printCenteredText("SPEED", 1, GREEN, 107, 0, 30);
 		}
 		double acceleration;
-		if (speed != this->oldSpeed || refresh) {
+		if (speed != this->oldSpeed || this->refresh) {
 			if (speed < 10)                        printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
 			else if (speed >= 10 && speed < 100)   printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
 			else if (speed >= 100 && speed < 1000) printCenteredText(String(speed, 1), 3, GREEN, 107, 0, 64);
@@ -388,29 +389,29 @@ class SummaryScreen: public Screen {
 
 	void displayDirection(double angle) {
 
-		if (refresh) {
+		if (this->refresh) {
 			printCenteredText("DIRECTION", 1, GREEN, 107, 107, 30);
 		}
 
 		String dir = getDirection(angle);
 
-		if (this->oldDirection != dir || refresh) {
+		if (this->oldDirection != dir || this->refresh) {
 			printCenteredText(dir, 3, GREEN, 107, 107, 64);
 		}
 		this->oldDirection = dir;
 
-		if (this->oldAngle != angle || refresh) {
+		if (this->oldAngle != angle || this->refresh) {
 			printCenteredText(String(angle), 2, GREEN, 107, 107, 95);
 		}
 		this->oldAngle = angle;
 	}
 
 	void displayTemperature(double temp) {
-		if (refresh) {
+		if (this->refresh) {
 			printCenteredText("TEMPERATURE", 1, GREEN, 107, 214, 30);
 		}
 
-		if (this->oldTemperature != temp || refresh) {
+		if (this->oldTemperature != temp || this->refresh) {
 
 			if (currTemp != -3.4028235E+38) {
 				if      (temp <= -100 || temp >= 1000)   printCenteredText(String(temp, 0), 3, GREEN, 107, 214, 64);
@@ -425,12 +426,12 @@ class SummaryScreen: public Screen {
 	}
 
 	void displayAltitude(double alt) {
-		if (refresh) {
+		if (this->refresh) {
 			display.setCursor(30,128);
 			display.setTextSize(1);
 			display.print("ALTITUDE");
 		}
-		if (this->oldAltitude != alt || refresh) {
+		if (this->oldAltitude != alt || this->refresh) {
 			if      (alt <= -100 || alt >= 1000)   printCenteredText(String(alt, 0), 3, GREEN, 107, 214, 162);
 			else if ((alt <= -10 && alt > -100) ||
 			         (alt >= 100 && alt < 1000))   printCenteredText(String(alt, 1), 3, GREEN, 107, 0, 162);
@@ -440,37 +441,37 @@ class SummaryScreen: public Screen {
 	}
 
 	void displaySatellites(int sat, float hdop) {
-		if (refresh) {
+		if (this->refresh) {
 			display.setCursor(131,128);
 			printCenteredText("SATELLITES", 1, GREEN, 107, 107, 128);
 		}
 
-		if (this->oldSatellites != sat || refresh) {
+		if (this->oldSatellites != sat || this->refresh) {
 			printCenteredText(String(sat), 3, GREEN, 107, 107, 162);
 		}
 		this->oldSatellites = sat;
 
-		if (this->oldHdop !=hdop || refresh) {
+		if (this->oldHdop !=hdop || this->refresh) {
 			printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
 		}
 		this->oldHdop = hdop;
 	}
 
 	void displayLogsAndPoints(int logNumber, int point) {
-		if (refresh) {
+		if (this->refresh) {
 			printCenteredText("LOG", 1, GREEN, 107, 214, 128);
 			printCenteredText("POINTS", 1, GREEN, 107, 214, 174);
 			printCenteredText(String(logNumber), 2, GREEN, 107, 214, 142);
 		}
 
-		if (this->oldPoints != point || refresh) {
+		if (this->oldPoints != point || this->refresh) {
 			printCenteredText(String(point), 2, GREEN, 107, 214, 188);
 		}
 		this->oldPoints = point;
 	}
 
 	void displayOutlines() {
-		if (refresh) {
+		if (this->refresh) {
 			display.drawLine(107,20, 107, 215, GREEN);
 			display.drawLine(213,20, 213, 215, GREEN);
 			display.drawLine(0, 118, 320, 118, GREEN);
@@ -487,7 +488,7 @@ class SummaryScreen: public Screen {
 			display.setCursor(35,221);
 			gotFix = true;
 			if (newGpsStatus.lat != oldGpsStatus.lat ||
-				newGpsStatus.lon != oldGpsStatus.lon || refresh) {
+				newGpsStatus.lon != oldGpsStatus.lon || this->refresh) {
 
 				display.fillRect(35,221,250,16, BLACK);
 				display.print(GPS.lat);
@@ -501,7 +502,7 @@ class SummaryScreen: public Screen {
 		}
 		else {
 
-			if (newGpsStatus.fix != oldGpsStatus.fix || refresh)
+			if (newGpsStatus.fix != oldGpsStatus.fix || this->refresh)
 			{
 				display.fillRect(0,216,320,25, BLACK);
 				if (!gotFix) {
@@ -522,6 +523,7 @@ class SummaryScreen: public Screen {
 	void displayScreen(bool refresh) {
 		// Not the best solution to get the data here,
 		// would be better to get it in as variables.
+		this->refresh = refresh;
 		displayOutlines();
 		displaySpeed(GPS.speed*1.852);
 		displayDirection(GPS.angle);
@@ -530,10 +532,8 @@ class SummaryScreen: public Screen {
 		displaySatellites(GPS.satellites, GPS.HDOP);
 		displayLogsAndPoints(logs,trkpts);
 		displayGPSStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
-		refresh = false;
 	}
 };
-SummaryScreen summaryScreen;
 
 class SpeedScreen: public Screen {
 	float oldSpeed, oldAvgSpeed, oldMaxSpeed, oldDistance, oldAltitude;
@@ -587,6 +587,10 @@ class SpeedScreen: public Screen {
 
 		drawCircleLine(mapfloat(this->oldAvgSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLACK);
 		drawCircleLine(mapfloat(avgSpeed,          0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLUE);
+
+		this->oldSpeed = speed;
+		this->oldMaxSpeed = maxSpeed;
+		this->oldAvgSpeed = avgSpeed;
 	}
 
 	void displaySpeed(float speed) {
@@ -668,7 +672,6 @@ class SpeedScreen: public Screen {
 
 	}
 };
-SpeedScreen speedScreen;
 
 class DirectionScreen: public Screen {
 	float oldAngle, oldSpeed, oldAltitude;
@@ -787,12 +790,85 @@ class DirectionScreen: public Screen {
 		displayAltitude(GPS.altitude);
 	}
 };
-DirectionScreen directionScreen;
 
-Screen* screens[3] = {
-	new SummaryScreen(),
-	new SpeedScreen(),
-	new DirectionScreen()
+class TemperatureScreen: public Screen
+{
+	public:
+	void displayScreen(bool ref) {
+		if (ref)
+		{
+			display.setTextSize(2);
+			display.setTextColor(GREEN);
+			display.setCursor(3,23);
+			display.print("Temperature:\nWork in progress...");
+		}
+	}
+};
+
+class AltitudeScreen: public Screen
+{
+	public:
+	void displayScreen(bool ref){
+		if (ref)
+		{
+			display.setTextSize(2);
+			display.setTextColor(GREEN);
+			display.setCursor(3,23);
+			display.print("Altitude:\nWork in progress...");
+		}
+	}
+};
+
+class SatellitesScreen: public Screen
+{
+	public:
+	void displayScreen(bool ref){
+		if (ref)
+		{
+			display.setTextSize(2);
+			display.setTextColor(GREEN);
+			display.setCursor(3,23);
+			display.print("Satellites:\nWork in progress...");
+		}
+	}
+};
+
+class LogsAndPointsScreen: public Screen
+{
+	public:
+	void displayScreen(bool ref){
+		if (ref)
+		{
+			display.drawLine(0,130,320,130,GREEN);
+			display.setTextSize(2);
+			display.setTextColor(GREEN);
+			display.setCursor(3,23);
+			display.print("Time and position:\nWork in progress...");
+		}
+	}
+};
+
+class SettingsScreen: public Screen
+{
+	public:
+	void displayScreen(bool ref){
+		if (ref)
+		{
+			display.setTextSize(2);
+			display.setTextColor(GREEN);
+			display.setCursor(3,23);
+			display.print("Date and time:");
+		}
+		printCenteredText(newDate.getDate(), 5, GREEN, 320, 0, 75);
+		printCenteredText(newDate.getTime(), 5, GREEN, 320, 0, 145);
+		refresh = false;
+	}
+};
+
+class BlankScreen: public Screen
+{
+	public:
+	void displayScreen(bool ref){}
 };
 
 void useInterrupt(boolean);
@@ -857,6 +933,16 @@ void setup() {
 	sensors.begin();
 	ts.begin();
 	pinMode(LEDPIN, OUTPUT);
+
+	screens[0] = new SummaryScreen();
+	screens[1] = new SpeedScreen();
+	screens[2] = new DirectionScreen();
+	screens[3] = new TemperatureScreen();
+	screens[4] = new AltitudeScreen();
+	screens[5] = new SatellitesScreen();
+	screens[6] = new LogsAndPointsScreen();
+	screens[7] = new SettingsScreen();
+	screens[8] = new BlankScreen();
 
 	// make sure that the default chip select pin is set to
 	// output, even if you don't use it:
@@ -1029,18 +1115,13 @@ void printTopBar() {
 				display.print(addSecs);
 			}
 		}
-
 	}
-
-	oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec, newDate.mil);
 }
 
-
-
-float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
-{
- return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
+	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
 int oldMaxSpeed = 999;
 
 void drawCircleLine(double degree, double circleX, double circleY, double rBegin, double rEnd, int color) {
@@ -1049,68 +1130,6 @@ void drawCircleLine(double degree, double circleX, double circleY, double rBegin
 	                 (circleX + (rEnd   * cos(degree * 1000.0/57296.0))),
 	                 (circleY + (rEnd   * sin(degree * 1000.0/57296.0))),
 	                 color);
-}
-
-void displayTemperatureScreen() {
-	if (refresh)
-	{
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
-		display.print("Temperature:\nWork in progress...");
-	}
-	refresh = false;
-}
-
-void displayAltitudeScreen() {
-	if (refresh)
-	{
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
-		display.print("Altitude:\nWork in progress...");
-	}
-	refresh = false;
-}
-
-void displaySatellitesScreen() {
-	if (refresh)
-	{
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
-		display.print("Satellites:\nWork in progress...");
-	}
-	refresh = false;
-}
-
-void displayLogsAndPoints() {
-	if (refresh)
-	{
-		display.drawLine(0,130,320,130,GREEN);
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
-		display.print("Time and position:\nWork in progress...");
-	}
-	refresh = false;
-}
-
-void displayDateTime() {
-	if (refresh)
-	{
-		display.setTextSize(2);
-		display.setTextColor(GREEN);
-		display.setCursor(3,23);
-		display.print("Date and time:");
-	}
-	printCenteredText(newDate.getDate(), 5, GREEN, 320, 0, 75);
-	printCenteredText(newDate.getTime(), 5, GREEN, 320, 0, 145);
-	refresh = false;
-}
-
-void displayLocation() {
-
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
@@ -1239,11 +1258,11 @@ void loop() {
 		if (!GPS.parse(stringptr))   // this also sets the newNMEAreceived() flag to false
 			return;  // we can fail to parse a sentence in which case we should just wait for another
 
-		// Sentence parsed!
-		if (LOG_FIXONLY && !GPS.fix) {
-			return;
-		}
+		// Sentence parsed! Display updated data!
+		newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+		printTopBar();
 
+		// Read temperature from the sensor.
 		sensors.requestTemperatures();
 		double temp;
 		if (sensors.getAddress(tempDeviceAddress, 0)) {
@@ -1254,47 +1273,28 @@ void loop() {
 		} else {
 			currTemp = -3.4028235E+38;
 		}
-		currAlt = GPS.altitude;
-		if (currAlt < minAlt) minAlt = currAlt;
-		if (currAlt > maxAlt) maxAlt = currAlt;
+		// Update the altitude limits.
+		//if (GPS.altitude < minAlt) minAlt = GPS.altitude;
+		//if (GPS.altitude > maxAlt) maxAlt = GPS.altitude;
 
+		// Update the max speed.
 		currSpeed = GPS.speed*1.852;
 		if (currSpeed > gpsStatus.maxSpeed) gpsStatus.maxSpeed = currSpeed;
-		double potPos = analogRead(0);
 
-		printTopBar();
-		screens[currentScreen];
-		switch (currentScreen) {
-			case 0:
-				break;
-			case 1:
-				break;
-			case 2:
-				break;
-			case 3:
-				displayTemperatureScreen();
-				break;
-			case 4:
-				displayAltitudeScreen();
-				break;
-			case 5:
-				displaySatellitesScreen();
-				break;
-			case 6:
-				displayLogsAndPoints();
-				break;
-			case 7:
-				displayDateTime();
-				break;
-			case 8:
-				displayLocation();
-				break;
-		}
+		// Display the selected screen.
+		screens[currentScreen]->displayScreen(refresh);
+
+		// Do not refresh the elements that do not have to be refreshed again.
 		refresh = false;
 
+		oldDate.updateDate(newDate.yr, newDate.mth, newDate.day, newDate.hr, newDate.min, newDate.sec, newDate.mil);
+		// Return if the GPS hasn't aquired a fix.
+		if (LOG_FIXONLY && !GPS.fix) {
+			return;
+		}
+
 		// Rad. lets log it!
-		if (GPS.fix && strstr(stringptr, "RMC")){
-			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+		if (strstr(stringptr, "RMC")){
 			logPointToFile(tempDeviceAddress);
 			if (oldLat != NULL && oldLon != NULL) {
 				gpsStatus.distance += distanceBetweenPoints(oldLat,GPS.latitudeDegrees,oldLon,GPS.longitudeDegrees);
