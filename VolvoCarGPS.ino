@@ -150,7 +150,6 @@ const unsigned char  PROGMEM volvo_2_top [] = {
 	B00000111, B00000000, B00000111, B11111110, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B01110000, B00000111, B11111111, B11100000,
 	B00000111, B00000000, B00001111, B11111110, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B01110000, B00000011, B11111111, B11100000,
 };
-
 const unsigned char  PROGMEM volvo_2_middle [] = {
 	B00001111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11110000,
 	B00001111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11111111, B11110000,
@@ -418,7 +417,7 @@ GPS_Status oldGpsStatus;
 class Screen {
 	public:
 	virtual void displayScreen(GPS_Status* data, GPS_Status* oldData);
-	//virtual bool wasTapped(int x, int y);
+	virtual bool wasTapped(int x, int y);
 };
 Screen*           screens[9];
 
@@ -743,7 +742,7 @@ class SpeedScreen: public Screen {
 
 	}
 	bool wasTapped(int x, int y) {
-		return false;
+		return 118 < x && x <= 215 && 107 >= y && y > 0;
 	}
 };
 
@@ -867,6 +866,9 @@ class DirectionScreen: public Screen {
 		displaySpeed(GPS.speed*1.852);
 		displayAltitude(GPS.altitude);
 	}
+	bool wasTapped(int x, int y) {
+		return 118 < x && x <= 215 && 213 >= y && y > 107;
+	}
 };
 
 class TemperatureScreen: public Screen
@@ -882,6 +884,9 @@ class TemperatureScreen: public Screen
 			display.setCursor(3,23);
 			display.print("Temperature:\nWork in progress...");
 		}
+	}
+	bool wasTapped(int x, int y) {
+		return 118 < x && x <= 215 && 320 >= y && y > 213;
 	}
 };
 
@@ -899,6 +904,9 @@ class AltitudeScreen: public Screen
 			display.print("Altitude:\nWork in progress...");
 		}
 	}
+	bool wasTapped(int x, int y) {
+		return 20 < x && x <= 118 && 107 >= y && y >= 0;
+	}
 };
 
 class SatellitesScreen: public Screen
@@ -914,6 +922,9 @@ class SatellitesScreen: public Screen
 			display.setCursor(3,23);
 			display.print("Satellites:\nWork in progress...");
 		}
+	}
+	bool wasTapped(int x, int y) {
+		return 20 < x && x <= 118 && 213 >= y && y > 107;
 	}
 };
 
@@ -931,6 +942,9 @@ class LogsAndPointsScreen: public Screen
 			display.setCursor(3,23);
 			display.print("Time and position:\nWork in progress...");
 		}
+	}
+	bool wasTapped(int x, int y) {
+		return 20 < x && x <= 118 && 320 >= y && y > 213;
 	}
 };
 
@@ -951,12 +965,18 @@ class SettingsScreen: public Screen
 		printCenteredText(newDate.getTime(), 5, GREEN, 320, 0, 145);
 		refresh = false;
 	}
+	bool wasTapped(int x, int y) {
+		return 118 <= x && x <= 240 && 0 <= y && y <= 320;
+	}
 };
 
 class BlankScreen: public Screen
 {
 	public:
 	void displayScreen(GPS_Status* data, GPS_Status* oldData){}
+	bool wasTapped(int x, int y) {
+		return 0 <= x && x <= 20 && 0 <= y && y <= 320;
+	}
 };
 
 void useInterrupt(boolean);
@@ -1273,17 +1293,6 @@ double distanceBetweenPoints(double lat1, double lat2, double lon1, double lon2)
 bool hasBeenPressed = false;
 double oldLat = NULL, oldLon = NULL;
 
-bool tappedSpeed   (int x, int y) { return 118 < x && x <= 215 && 107 >= y && y > 0;   }
-bool tappedDir     (int x, int y) { return 118 < x && x <= 215 && 213 >= y && y > 107; }
-bool tappedTemp    (int x, int y) { return 118 < x && x <= 215 && 320 >= y && y > 213; }
-
-bool tappedAlt     (int x, int y) { return 20 < x && x <= 118 && 107 >= y && y >= 0;   }
-bool tappedSats    (int x, int y) { return 20 < x && x <= 118 && 213 >= y && y > 107;  }
-bool tappedLogs    (int x, int y) { return 20 < x && x <= 118 && 320 >= y && y > 213;  }
-
-bool tappedTime    (int x, int y) { return 118 <= x && x <= 240 && 0 <= y && y <= 320; }
-bool tappedLocation(int x, int y) { return 0 <= x && x <= 20 && 0 <= y && y <= 320;    }
-
 void loop() {
 	if (ts.touched() && !hasBeenPressed) {
 		hasBeenPressed = true;
@@ -1294,24 +1303,11 @@ void loop() {
 		{
 			currentScreen = 0;
 		} else {
-			if (tappedSpeed(p.x, p.y)) {
-				currentScreen = 1;
-			} else if (tappedDir(p.x, p.y)) {
-				currentScreen = 2;
-			} else if (tappedTemp(p.x, p.y)) {
-				currentScreen = 3;
-			} else if (tappedAlt(p.x, p.y)) {
-				currentScreen = 4;
-			} else if (tappedSats(p.x, p.y)) {
-				currentScreen = 5;
-			} else if (tappedLogs(p.x, p.y)) {
-				currentScreen = 6;
-			} else if (tappedTime(p.x, p.y)) {
-				currentScreen = 7;
-			} else if (tappedLocation(p.x, p.y)) {
-				currentScreen = 8;
-			} else {
-				return;
+			for (int i = 1; i < 9; i++) {
+				if (screens[i]->wasTapped(p.x, p.y)) {
+					currentScreen = i;
+					break;
+				}
 			}
 		}
 		display.fillRect(0,20,320,240, BLACK);
