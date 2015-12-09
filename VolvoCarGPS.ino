@@ -356,20 +356,21 @@ struct GPS_Status
 		this->lon = NULL;
 	}
 
-	GPS_Status(double speed, double angle, double temperature, double altitude, double acceleration, double hdop, double points, double distance, double avgSpeed, double maxSpeed, double lat, double lon, int satellites, int fix, bool refresh) {
+	GPS_Status(double speed, double angle, double altitude, double hdop, double lat, double lon, int satellites, int fix) {
 		this->speed        = speed;
 		this->angle        = angle;
-		this->temperature  = temperature;
 		this->altitude     = altitude;
-		this->acceleration = acceleration;
 		this->hdop         = hdop;
-		this->points       = points;
-		this->distance     = distance;
-		this->avgSpeed     = avgSpeed;
-		this->maxSpeed     = maxSpeed;
 		this->lat          = lat;
 		this->lon          = lon;
-		this->refresh      = refresh;
+	}
+	void updateStatus(double speed, double angle, double altitude, double hdop, double lat, double lon, int satellites, int fix) {
+		this->speed        = speed;
+		this->angle        = angle;
+		this->altitude     = altitude;
+		this->hdop         = hdop;
+		this->lat          = lat;
+		this->lon          = lon;
 	}
 };
 GPS_Status newGpsStatus;
@@ -548,9 +549,6 @@ class SummaryScreen: public Screen {
 };
 
 class SpeedScreen: public Screen {
-	float oldSpeed, oldAvgSpeed, oldMaxSpeed, oldDistance, oldAltitude;
-	int oldSatellites;
-
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 
@@ -563,6 +561,7 @@ class SpeedScreen: public Screen {
 		display.drawLine(160,20,160,60,textColor);
 		display.drawLine(240,20,240,100,textColor);
 	}
+
 	void displaySpeedometerOutlines() {
 		display.drawCircle(160,240,150,textColor);
 		for (int i = 1; i < MAX_SPEED; i++) {
@@ -590,83 +589,73 @@ class SpeedScreen: public Screen {
 		display.setCursor(217, 128); display.print(60);
 		display.setCursor(247, 157); display.print(70);
 		display.setCursor(269, 194); display.print(80);
-		display.drawBitmap(96, 170, volvo, 128, 17, BLUE);
+		//display.drawBitmap(96, 170, volvo, 128, 17, BLUE);
 
 		float mappedSpeed = mapfloat(speed, 0.0, MAX_SPEED, 180.0, 360.0);
 		if (mappedSpeed < 180) mappedSpeed = 180;
 
-		drawCircleLine(mapfloat(this->oldSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 0, 130, BLACK);
-		drawCircleLine(mapfloat(speed,          0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 0, 130, RED);
+		drawCircleLine(mapfloat(oldStatus->speed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 0, 130, BLACK);
+		drawCircleLine(mapfloat(newStatus->speed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 0, 130, RED);
 
-		drawCircleLine(mapfloat(this->oldMaxSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLACK);
-		drawCircleLine(mapfloat(maxSpeed,          0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, RED);
+		drawCircleLine(mapfloat(oldStatus->maxSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLACK);
+		drawCircleLine(mapfloat(newStatus->maxSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, RED);
 
-		drawCircleLine(mapfloat(this->oldAvgSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLACK);
-		drawCircleLine(mapfloat(avgSpeed,          0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLUE);
-
-		this->oldSpeed = speed;
-		this->oldMaxSpeed = maxSpeed;
-		this->oldAvgSpeed = avgSpeed;
+		drawCircleLine(mapfloat(oldStatus->avgSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLACK);
+		drawCircleLine(mapfloat(newStatus->avgSpeed, 0.0, MAX_SPEED, 180.0, 360.0), 160, 239, 160, 151, BLUE);
 	}
 
 	void displaySpeed(float speed) {
 		if (newStatus->refresh) {
 			printCenteredText("SPEED", 1, textColor, 80, 0, 24);
 		}
-		if (oldSpeed != speed || newStatus->refresh) {
-			printCenteredText(String(speed,2), 2, textColor, 80, 0, 38);
+		if (oldStatus->speed != newStatus->speed || newStatus->refresh) {
+			printCenteredText(String(newStatus->speed,2), 2, textColor, 80, 0, 38);
 		}
-		this->oldSpeed = speed;
 	}
 
 	void displayAvgSpeed(float avgSpeed) {
 		if (newStatus->refresh) {
 			printCenteredText("AVG. SPEED", 1, textColor, 79, 80, 24);
 		}
-		if (oldAvgSpeed != avgSpeed || newStatus->refresh) {
-			printCenteredText(String(avgSpeed,2), 2, textColor, 80, 80, 38);
+		if (oldStatus->avgSpeed != newStatus->avgSpeed || newStatus->refresh) {
+			printCenteredText(String(newStatus->avgSpeed,2), 2, textColor, 80, 80, 38);
 		}
-		this->oldAvgSpeed = avgSpeed;
 	}
 
 	void displayMaxSpeed(float maxSpeed) {
 		if (newStatus->refresh) {
 			printCenteredText("MAX SPEED", 1, textColor, 79, 160, 24);
 		}
-		if (oldMaxSpeed != maxSpeed || newStatus->refresh) {
-			printCenteredText(String(maxSpeed,2), 2, textColor, 80, 160, 38);
+		if (oldStatus->maxSpeed != newStatus->maxSpeed || newStatus->refresh) {
+			printCenteredText(String(newStatus->maxSpeed,2), 2, textColor, 80, 160, 38);
 		}
-		this->oldMaxSpeed = maxSpeed;
 	}
 
 	void displayDistance(float distance) {
 		if (newStatus->refresh) {
 			printCenteredText("DISTANCE", 1, textColor, 80, 240, 24);
 		}
-		if (oldDistance != distance || newStatus->refresh) {
-			printCenteredText(String(distance, 2), 2, textColor, 80, 240, 38);
+		if (oldStatus->distance != newStatus->distance || newStatus->refresh) {
+			printCenteredText(String(newStatus->distance, 2), 2, textColor, 80, 240, 38);
 		}
-		this->oldDistance = distance;
 	}
 
 	void displayAltitude(float altitude) {
 		if (newStatus->refresh) {
 			printCenteredText("ALTITUDE", 1, textColor, 80, 0, 65);
 		}
-		if (oldAltitude != altitude || newStatus->refresh) {
-			printCenteredText(String(altitude,1), 2, textColor, 80, 0, 79);
+		if (oldStatus->altitude != newStatus->altitude || newStatus->refresh) {
+			printCenteredText(String(newStatus->altitude,1), 2, textColor, 80, 0, 79);
 		}
-		this->oldAltitude = altitude;
 	}
 
 	void displaySatellites(int satellites) {
 		if (newStatus->refresh) {
 			printCenteredText("SATELLITES", 1, textColor, 80, 240, 65);
 		}
-		if (oldSatellites != satellites || newStatus->refresh) {
-			printCenteredText(String(satellites), 2, textColor, 80, 240, 79);
+		if (oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
+			printCenteredText(String(newStatus->satellites), 2, textColor, 80, 240, 79);
 		}
-		this->oldSatellites = satellites;
 	}
 
 	public:
@@ -1047,13 +1036,13 @@ void setup() {
 	printCenteredText("Starting GPS...", 2, WHITE, 320, 0, 188);
 	GPS.begin(9600);
 	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
+	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
 	// uncomment this line to turn on only the "minimum recommended" data
 	//GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
 	// For logging data, we don't suggest using anything but either RMC only or RMC+GGA
 	// to keep the log files at a reasonable size
 	// Set the update rate
-	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
+	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
 	// Turn off updates on antenna status, if the firmware permits it
 	GPS.sendCommand(PGCMD_NOANTENNA);
 
@@ -1283,6 +1272,7 @@ void loop() {
 
 	// if a sentence is received, we can check the checksum, parse it...
 	if (GPS.newNMEAreceived()) {
+
 		// a tricky thing here is if we print the NMEA sentence, or data
 		// we end up not listening and catching other sentences!
 		// so be very wary if using OUTPUT_ALLDATA and trying to print out data
@@ -1298,16 +1288,18 @@ void loop() {
 
 		// Sentence parsed! Display updated data!
 		newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+		newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix);
 		printTopBar();
 
+		// Disabling the temperature readings.
 		// Read temperature from the sensor.
-		sensors.requestTemperatures();
-		double temp;
-		if (sensors.getAddress(tempDeviceAddress, 0)) {
-			newGpsStatus.temperature = sensors.getTempC(tempDeviceAddress);
-		} else {
-			newGpsStatus.temperature = NULL;
-		}
+		//sensors.requestTemperatures();
+		//double temp;
+		//if (sensors.getAddress(tempDeviceAddress, 0)) {
+		//	newGpsStatus.temperature = sensors.getTempC(tempDeviceAddress);
+		//} else {
+		//	newGpsStatus.temperature = NULL;
+		//}
 
 		// Update the max speed.
 		if (newGpsStatus.speed > newGpsStatus.maxSpeed)
@@ -1322,7 +1314,6 @@ void loop() {
 			                                               newGpsStatus.lat,
 			                                               oldGpsStatus.lon,
 			                                               newGpsStatus.lon);
-
 			// This will do for now.
 			newGpsStatus.avgSpeed = newGpsStatus.distance/newGpsStatus.points*60*60;
 		}
@@ -1332,6 +1323,7 @@ void loop() {
 			logPointToFile(tempDeviceAddress);
 			newGpsStatus.points++;
 		}
+
 		// Display the selected screen.
 		screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
 
