@@ -26,8 +26,8 @@
 #define DISPLAYBUTTON 40
 
 // Options
-#define GPSECHO               true
-#define LOG_FIXONLY           false
+#define GPSECHO               false
+#define LOG_FIXONLY           true
 #define TEMPERATURE_PRECISION 11
 #define MAX_SPEED 90
 
@@ -62,23 +62,13 @@ File              logfile;                                            // The fil
 
 int          currentScreen = 0;         // The current screen that is displayed.
 
-double       maxAlt = -3.4028235E+38,   // Maximum altitude since reset.
-             minAlt = 3.4028235E+38,    // Minimum altitude since reset.
-             maxSpeed = -3.4028235E+38, // Maximum speed since reset.
-             avgSpeed,                  // Average speed since reset.
-             maxTemp = -3.4028235E+38,  // Maximum temperature since reset.
-             minTemp = 3.4028235E+38,   // Minimum temperature since reset.
-             currTemp,                  // Current temperature.
-             currAlt,                   // Current altitude.
-             currSpeed;                 // Current speed.
-
 bool         wasPressed = false,        // Tells if the screen has already been pressed.
              gotFix = false,            // Tells if the GPS has gotten a fix since start.
-             usingInterrupt = false,    // Tells if we should use interrupts for parsing NMEA data.
-             refresh = true;            // Tells if we should refresh the screen.
+             usingInterrupt = false;    // Tells if we should use interrupts for parsing NMEA data.
 
-unsigned int trkpts = 0,                // The number of track points in the current log file.
-             logs = 0;                  // The number of the log on the SD card currently written to.
+unsigned int logs = 0;                  // The number of the log on the SD card currently written to.
+unsigned int backgroundColor = BLACK;
+unsigned int textColor = GREEN;
 
 static const unsigned char PROGMEM volvo [] = {
 	B11111111, B11111111, B11000111, B11111111, B10000011, B11111111, B00000001, B11111111, B11111110, B00111111, B11111111, B11110001,B11111111, B10000011, B11111111, B11110000,
@@ -337,10 +327,11 @@ struct GPS_Status
 	double speed,
 	       angle,
 	       temperature,
+	       minTemp,
+	       maxTemp,
 	       altitude,
 	       acceleration,
 	       hdop,
-	       points,
 	       distance,
 	       avgSpeed,
 	       maxSpeed,
@@ -350,7 +341,8 @@ struct GPS_Status
 	bool refresh;
 
 	int satellites,
-	    fix;
+	    fix,
+	    points;
 
 
 	GPS_Status() {
@@ -383,33 +375,6 @@ struct GPS_Status
 		this->lon          = lon;
 		this->refresh      = refresh;
 	}
-
-	void updateStatus(double speed, double angle, double temperature, double altitude, double acceleration, double hdop, double points, double distance, double avgSpeed, double maxSpeed, double lat, double lon, int satellites, int fix, bool refresh) {
-		this->speed        = speed;
-		this->angle        = angle;
-		this->temperature  = temperature;
-		this->altitude     = altitude;
-		this->acceleration = acceleration;
-		this->hdop         = hdop;
-		this->points       = points;
-		this->distance     = distance;
-		this->avgSpeed     = avgSpeed;
-		this->maxSpeed     = maxSpeed;
-		this->lat          = lat;
-		this->lon          = lon;
-		this->refresh      = refresh;
-	}
-	void updateAvgSpeed(float avgSpeed) {
-		this->avgSpeed = avgSpeed;
-	}
-
-	void updateMaxSpeed(float maxSpeed) {
-		this->maxSpeed = maxSpeed;
-	}
-
-	void updateDistance(float distance) {
-		this->distance = distance;
-	}
 };
 GPS_Status newGpsStatus;
 GPS_Status oldGpsStatus;
@@ -426,123 +391,110 @@ class SummaryScreen: public Screen {
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 
-	double oldSpeed, oldAngle, oldTemperature, oldAltitude, oldAcceleration, oldHdop;
-	int oldPoints = -1, oldSatellites;
-	String oldDirection;
-
-	void displaySpeed(float speed) {
+	void displaySpeed() {
 		if (newStatus->refresh) {
-			printCenteredText("SPEED", 1, GREEN, 107, 0, 30);
+			printCenteredText("SPEED", 1, textColor, 107, 0, 30);
 		}
 		double acceleration;
-		if (speed != this->oldSpeed || newStatus->refresh) {
-			if (speed < 10)                        printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
-			else if (speed >= 10 && speed < 100)   printCenteredText(String(speed, 2), 3, GREEN, 107, 0, 64);
-			else if (speed >= 100 && speed < 1000) printCenteredText(String(speed, 1), 3, GREEN, 107, 0, 64);
-			else if (speed >= 1000)                printCenteredText(String(speed, 0), 3, GREEN, 107, 0, 64);
-
-			acceleration = speed - this->oldSpeed;
-			printCenteredText(String(acceleration, 2), 2, GREEN, 107, 0, 95);
+		if (newStatus->speed != oldStatus->speed || newStatus->refresh) {
+			if (newStatus->speed < 10)                                   printCenteredText(String(newStatus->speed, 2), 3, textColor, 107, 0, 64);
+			else if (newStatus->speed >= 10 && newStatus->speed < 100)   printCenteredText(String(newStatus->speed, 2), 3, textColor, 107, 0, 64);
+			else if (newStatus->speed >= 100 && newStatus->speed < 1000) printCenteredText(String(newStatus->speed, 1), 3, textColor, 107, 0, 64);
+			else if (newStatus->speed >= 1000)                           printCenteredText(String(newStatus->speed, 0), 3, textColor, 107, 0, 64);
+			printCenteredText(String(newStatus->acceleration, 2), 2, textColor, 107, 0, 95);
 		}
-
-		this->oldSpeed = speed;
-		this->oldAcceleration = acceleration;
 	}
 
-	void displayDirection(double angle) {
+	void displayDirection() {
 
 		if (newStatus->refresh) {
-			printCenteredText("DIRECTION", 1, GREEN, 107, 107, 30);
+			printCenteredText("DIRECTION", 1, textColor, 107, 107, 30);
 		}
 
-		String dir = getDirection(angle);
+		String dir = getDirection(newStatus->angle);
 
-		if (this->oldDirection != dir || newStatus->refresh) {
-			printCenteredText(dir, 3, GREEN, 107, 107, 64);
+		if (getDirection(oldStatus->angle) != dir || newStatus->refresh) {
+			printCenteredText(dir, 3, textColor, 107, 107, 64);
 		}
-		this->oldDirection = dir;
 
-		if (this->oldAngle != angle || newStatus->refresh) {
-			printCenteredText(String(angle), 2, GREEN, 107, 107, 95);
+		if (oldStatus->angle != newStatus->angle || newStatus->refresh) {
+			printCenteredText(String(newStatus->angle), 2, textColor, 107, 107, 95);
 		}
-		this->oldAngle = angle;
 	}
 
-	void displayTemperature(double temp) {
+	void displayTemperature() {
 		if (newStatus->refresh) {
-			printCenteredText("TEMPERATURE", 1, GREEN, 107, 214, 30);
+			printCenteredText("TEMPERATURE", 1, textColor, 107, 214, 30);
 		}
 
-		if (this->oldTemperature != temp || newStatus->refresh) {
+		if (oldStatus->temperature != newStatus->temperature || newStatus->refresh) {
 
-			if (currTemp != -3.4028235E+38) {
-				if      (temp <= -100 || temp >= 1000)   printCenteredText(String(temp, 0), 3, GREEN, 107, 214, 64);
-				else if ((temp <= -10 && temp > -100) ||
-				         (temp >= 100 && temp < 1000))   printCenteredText(String(temp, 1), 3, GREEN, 107, 214, 64);
-				else if (-10 < temp && temp < 100)       printCenteredText(String(temp, 2), 3, GREEN, 107, 214, 64);
+			if (newStatus->temperature != NULL) {
+				if      (newStatus->temperature <= -100 || newStatus->temperature >= 1000)
+					printCenteredText(String(newStatus->temperature, 0), 3, textColor, 107, 214, 64);
+				else if ((newStatus->temperature <= -10 && newStatus->temperature > -100) ||
+				         (newStatus->temperature >= 100 && newStatus->temperature < 1000))
+					printCenteredText(String(newStatus->temperature, 1), 3, textColor, 107, 214, 64);
+				else if (-10 < newStatus->temperature && newStatus->temperature < 100)
+					printCenteredText(String(newStatus->temperature, 2), 3, textColor, 107, 214, 64);
 			} else {
-				printCenteredText("DISC", 3, GREEN, 107, 214, 64);
+				printCenteredText("DISC", 3, textColor, 107, 214, 64);
 			}
 		}
-		this->oldTemperature = temp;
 	}
 
-	void displayAltitude(double alt) {
+	void displayAltitude() {
 		if (newStatus->refresh) {
 			display.setCursor(30,128);
 			display.setTextSize(1);
 			display.print("ALTITUDE");
 		}
-		if (this->oldAltitude != alt || newStatus->refresh) {
-			if      (alt <= -100 || alt >= 1000)   printCenteredText(String(alt, 0), 3, GREEN, 107, 214, 162);
-			else if ((alt <= -10 && alt > -100) ||
-			         (alt >= 100 && alt < 1000))   printCenteredText(String(alt, 1), 3, GREEN, 107, 0, 162);
-			else if (-10 < alt && alt < 100)       printCenteredText(String(alt, 2), 3, GREEN, 107, 0, 162);
+		if (oldStatus->altitude != newStatus->altitude || newStatus->refresh) {
+			if      (newStatus->altitude <= -100 || newStatus->altitude >= 1000)   printCenteredText(String(newStatus->altitude, 0), 3, textColor, 107, 214, 162);
+			else if ((newStatus->altitude <= -10 && newStatus->altitude > -100) ||
+			         (newStatus->altitude >= 100 && newStatus->altitude < 1000))   printCenteredText(String(newStatus->altitude, 1), 3, textColor, 107, 0, 162);
+			else if (-10 < newStatus->altitude && newStatus->altitude < 100)       printCenteredText(String(newStatus->altitude, 2), 3, textColor, 107, 0, 162);
 		}
-		this->oldAltitude = alt;
 	}
 
-	void displaySatellites(int sat, float hdop) {
+	void displaySatellites() {
 		if (newStatus->refresh) {
 			display.setCursor(131,128);
-			printCenteredText("SATELLITES", 1, GREEN, 107, 107, 128);
+			printCenteredText("SATELLITES", 1, textColor, 107, 107, 128);
 		}
 
-		if (this->oldSatellites != sat || newStatus->refresh) {
-			printCenteredText(String(sat), 3, GREEN, 107, 107, 162);
+		if (oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
+			printCenteredText(String(newStatus->satellites), 3, textColor, 107, 107, 162);
 		}
-		this->oldSatellites = sat;
 
-		if (this->oldHdop !=hdop || newStatus->refresh) {
-			printCenteredText(String(hdop, 2), 2, GREEN, 107, 107, 193);
+		if (oldStatus->hdop != newStatus->hdop || newStatus->refresh) {
+			printCenteredText(String(newStatus->hdop, 2), 2, textColor, 107, 107, 193);
 		}
-		this->oldHdop = hdop;
 	}
 
-	void displayLogsAndPoints(int logNumber, int point) {
+	void displayLogsAndPoints(int logNumber) {
 		if (newStatus->refresh) {
-			printCenteredText("LOG", 1, GREEN, 107, 214, 128);
-			printCenteredText("POINTS", 1, GREEN, 107, 214, 174);
-			printCenteredText(String(logNumber), 2, GREEN, 107, 214, 142);
+			printCenteredText("LOG", 1, textColor, 107, 214, 128);
+			printCenteredText("POINTS", 1, textColor, 107, 214, 174);
+			printCenteredText(String(logNumber), 2, textColor, 107, 214, 142);
 		}
 
-		if (this->oldPoints != point || newStatus->refresh) {
-			printCenteredText(String(point), 2, GREEN, 107, 214, 188);
+		if (oldStatus->points != newStatus->points || newStatus->refresh) {
+			printCenteredText(String(newStatus->points), 2, textColor, 107, 214, 188);
 		}
-		this->oldPoints = point;
 	}
 
 	void displayOutlines() {
 		if (newStatus->refresh) {
-			display.drawLine(107,20, 107, 215, GREEN);
-			display.drawLine(213,20, 213, 215, GREEN);
-			display.drawLine(0, 118, 320, 118, GREEN);
-			display.drawLine(0, 215, 320, 215, GREEN);
+			display.drawLine(107,20, 107, 215, textColor);
+			display.drawLine(213,20, 213, 215, textColor);
+			display.drawLine(0, 118, 320, 118, textColor);
+			display.drawLine(0, 215, 320, 215, textColor);
 		}
 	}
 
 	void displayGPSStatus(int fix, double lat, double lon) {
-		display.setTextColor(GREEN);
+		display.setTextColor(textColor);
 		display.setTextSize(2);
 
 		if (GPS.fix) {
@@ -585,12 +537,12 @@ class SummaryScreen: public Screen {
 		this->oldStatus = oldData;
 
 		displayOutlines();
-		displaySpeed(GPS.speed*1.852);
-		displayDirection(GPS.angle);
-		displayTemperature(currTemp);
-		displayAltitude(GPS.altitude);
-		displaySatellites(GPS.satellites, GPS.HDOP);
-		displayLogsAndPoints(logs,this->newStatus->points);
+		displaySpeed();
+		displayDirection();
+		displayTemperature();
+		displayAltitude();
+		displaySatellites();
+		displayLogsAndPoints(logs);
 		displayGPSStatus(GPS.fix, GPS.latitudeDegrees, GPS.longitudeDegrees);
 	}
 
@@ -607,33 +559,33 @@ class SpeedScreen: public Screen {
 	GPS_Status* oldStatus;
 
 	void displayDataFieldOutlines() {
-		display.drawLine(0,60,340,60,GREEN);
-		display.drawLine(0,100,80,100,GREEN);
-		display.drawLine(240,100,320,100,GREEN);
+		display.drawLine(0,60,340,60,textColor);
+		display.drawLine(0,100,80,100,textColor);
+		display.drawLine(240,100,320,100,textColor);
 
-		display.drawLine(80,20,80,100,GREEN);
-		display.drawLine(160,20,160,60,GREEN);
-		display.drawLine(240,20,240,100,GREEN);
+		display.drawLine(80,20,80,100,textColor);
+		display.drawLine(160,20,160,60,textColor);
+		display.drawLine(240,20,240,100,textColor);
 	}
 	void displaySpeedometerOutlines() {
-		display.drawCircle(160,240,150,GREEN);
+		display.drawCircle(160,240,150,textColor);
 		for (int i = 1; i < MAX_SPEED; i++) {
 			if (i % 10 == 0) {
-				drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 135, GREEN);
+				drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 135, textColor);
 				continue;
 			}
 
 			if (i % 5 == 0) {
-				drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 140, GREEN);
+				drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 140, textColor);
 				continue;
 			}
-			drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 145, GREEN);
+			drawCircleLine(mapfloat(i, 0, MAX_SPEED, 180, 360), 160, 239, 148, 145, textColor);
 		}
 	}
 
 	void displaySpeedometerUpdated(float speed, float avgSpeed, float maxSpeed) {
 		display.setTextSize(1);
-		display.setTextColor(GREEN);
+		display.setTextColor(textColor);
 		display.setCursor(40, 194);  display.print(10);
 		display.setCursor(62, 157);  display.print(20);
 		display.setCursor(92, 128);  display.print(30);
@@ -663,67 +615,67 @@ class SpeedScreen: public Screen {
 
 	void displaySpeed(float speed) {
 		if (newStatus->refresh) {
-			printCenteredText("SPEED", 1, GREEN, 80, 0, 24);
+			printCenteredText("SPEED", 1, textColor, 80, 0, 24);
 		}
 		if (oldSpeed != speed || newStatus->refresh) {
-			printCenteredText(String(speed,2), 2, GREEN, 80, 0, 38);
+			printCenteredText(String(speed,2), 2, textColor, 80, 0, 38);
 		}
 		this->oldSpeed = speed;
 	}
 
 	void displayAvgSpeed(float avgSpeed) {
 		if (newStatus->refresh) {
-			printCenteredText("AVG. SPEED", 1, GREEN, 79, 80, 24);
+			printCenteredText("AVG. SPEED", 1, textColor, 79, 80, 24);
 		}
 		if (oldAvgSpeed != avgSpeed || newStatus->refresh) {
-			printCenteredText(String(avgSpeed,2), 2, GREEN, 80, 80, 38);
+			printCenteredText(String(avgSpeed,2), 2, textColor, 80, 80, 38);
 		}
 		this->oldAvgSpeed = avgSpeed;
 	}
 
 	void displayMaxSpeed(float maxSpeed) {
 		if (newStatus->refresh) {
-			printCenteredText("MAX SPEED", 1, GREEN, 79, 160, 24);
+			printCenteredText("MAX SPEED", 1, textColor, 79, 160, 24);
 		}
 		if (oldMaxSpeed != maxSpeed || newStatus->refresh) {
-			printCenteredText(String(maxSpeed,2), 2, GREEN, 80, 160, 38);
+			printCenteredText(String(maxSpeed,2), 2, textColor, 80, 160, 38);
 		}
 		this->oldMaxSpeed = maxSpeed;
 	}
 
 	void displayDistance(float distance) {
 		if (newStatus->refresh) {
-			printCenteredText("DISTANCE", 1, GREEN, 80, 240, 24);
+			printCenteredText("DISTANCE", 1, textColor, 80, 240, 24);
 		}
 		if (oldDistance != distance || newStatus->refresh) {
-			printCenteredText(String(distance, 2), 2, GREEN, 80, 240, 38);
+			printCenteredText(String(distance, 2), 2, textColor, 80, 240, 38);
 		}
 		this->oldDistance = distance;
 	}
 
 	void displayAltitude(float altitude) {
 		if (newStatus->refresh) {
-			printCenteredText("ALTITUDE", 1, GREEN, 80, 0, 65);
+			printCenteredText("ALTITUDE", 1, textColor, 80, 0, 65);
 		}
 		if (oldAltitude != altitude || newStatus->refresh) {
-			printCenteredText(String(altitude,1), 2, GREEN, 80, 0, 79);
+			printCenteredText(String(altitude,1), 2, textColor, 80, 0, 79);
 		}
 		this->oldAltitude = altitude;
 	}
 
 	void displaySatellites(int satellites) {
 		if (newStatus->refresh) {
-			printCenteredText("SATELLITES", 1, GREEN, 80, 240, 65);
+			printCenteredText("SATELLITES", 1, textColor, 80, 240, 65);
 		}
 		if (oldSatellites != satellites || newStatus->refresh) {
-			printCenteredText(String(satellites), 2, GREEN, 80, 240, 79);
+			printCenteredText(String(satellites), 2, textColor, 80, 240, 79);
 		}
 		this->oldSatellites = satellites;
 	}
 
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData) {
-		this->newStatus    = data;
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData) {
+		this->newStatus = newData;
 		this->oldStatus = oldData;
 
 		if (newStatus->refresh) {
@@ -754,41 +706,41 @@ class DirectionScreen: public Screen {
 
 	void displayDataFieldOutlines() {
 		// Upper Horizontal Lines
-		display.drawLine(0,   60, 80, 60,  GREEN);
-		display.drawLine(240, 60, 320, 60, GREEN);
+		display.drawLine(0,   60, 80, 60,  textColor);
+		display.drawLine(240, 60, 320, 60, textColor);
 
 		// Upper Vertical Lines
-		display.drawLine(80,20,80,60,GREEN);
-		display.drawLine(240,20,240,60,GREEN);
+		display.drawLine(80,20,80,60,textColor);
+		display.drawLine(240,20,240,60,textColor);
 
 		// Lower Horizontal Lines
-		display.drawLine(0,200,80,200,GREEN);
-		display.drawLine(240,200,320,200,GREEN);
+		display.drawLine(0,200,80,200,textColor);
+		display.drawLine(240,200,320,200,textColor);
 
 		// Lower Vertical Lines
-		display.drawLine(80,200,80,240,GREEN);
-		display.drawLine(240,200,240,240,GREEN);
+		display.drawLine(80,200,80,240,textColor);
+		display.drawLine(240,200,240,240,textColor);
 	}
 
 	void displayDirection(float angle) {
 		if (newStatus->refresh) {
-			printCenteredText("DIRECTION", 1, GREEN, 80, 0,   24);
+			printCenteredText("DIRECTION", 1, textColor, 80, 0,   24);
 		}
 
 		String dir = getDirection(angle);
 		if (this->oldDirection != dir || newStatus->refresh) {
-			printCenteredText(dir, 2, GREEN, 80, 0, 38);
+			printCenteredText(dir, 2, textColor, 80, 0, 38);
 		}
 		this->oldDirection = dir;
 	}
 
 	void displayAngle(float angle) {
 		if (newStatus->refresh) {
-			printCenteredText("ANGLE", 1, GREEN, 80, 240, 24);
+			printCenteredText("ANGLE", 1, textColor, 80, 240, 24);
 		}
 
 		if (oldAngle != angle || newStatus->refresh) {
-			printCenteredText(String(angle,1), 2, GREEN, 80, 240, 38);
+			printCenteredText(String(angle,1), 2, textColor, 80, 240, 38);
 		}
 
 		this->oldAngle = angle;
@@ -796,11 +748,11 @@ class DirectionScreen: public Screen {
 
 	void displaySpeed(float speed) {
 		if (newStatus->refresh) {
-			printCenteredText("SPEED", 1, GREEN, 80, 0,   205);
+			printCenteredText("SPEED", 1, textColor, 80, 0,   205);
 		}
 
 		if (oldSpeed != speed || newStatus->refresh) {
-			printCenteredText(String(speed,2),    2, GREEN, 80, 0,   219);
+			printCenteredText(String(speed,2),    2, textColor, 80, 0,   219);
 		}
 
 		this->oldSpeed = speed;
@@ -808,28 +760,28 @@ class DirectionScreen: public Screen {
 
 	void displayAltitude(float altitude) {
 		if (newStatus->refresh) {
-			printCenteredText("ALTITUDE",  1, GREEN, 80, 240, 205);
+			printCenteredText("ALTITUDE",  1, textColor, 80, 240, 205);
 		}
 
 		if (oldAltitude != altitude || newStatus->refresh) {
-			printCenteredText(String(altitude,2), 2, GREEN, 80, 240, 219);
+			printCenteredText(String(altitude,2), 2, textColor, 80, 240, 219);
 		}
 
 		this->oldAltitude = altitude;
 	}
 
 	void displayCompassOutline() {
-		display.drawCircle(160, 130, 100, GREEN);
+		display.drawCircle(160, 130, 100, textColor);
 
-		display.drawLine  (259, 130, 250, 130, GREEN);
-		display.drawLine  (230, 200, 224, 194, GREEN);
-		display.drawLine  (160, 229, 160, 220, GREEN);
-		display.drawLine  (90,  200, 96,  194, GREEN);
-		display.drawLine  (61,  130, 70,  130, GREEN);
-		display.drawLine  (90,  60,  96,  66,  GREEN);
-		display.drawLine  (160, 31,  160, 40,  GREEN);
-		display.drawLine  (230, 60,  224, 66,  GREEN);
-		display.drawLine  (259, 130, 250, 130, GREEN);
+		display.drawLine  (259, 130, 250, 130, textColor);
+		display.drawLine  (230, 200, 224, 194, textColor);
+		display.drawLine  (160, 229, 160, 220, textColor);
+		display.drawLine  (90,  200, 96,  194, textColor);
+		display.drawLine  (61,  130, 70,  130, textColor);
+		display.drawLine  (90,  60,  96,  66,  textColor);
+		display.drawLine  (160, 31,  160, 40,  textColor);
+		display.drawLine  (230, 60,  224, 66,  textColor);
+		display.drawLine  (259, 130, 250, 130, textColor);
 	}
 
 	void displayCompassDirection(float angle) {
@@ -851,8 +803,8 @@ class DirectionScreen: public Screen {
 	}
 
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData) {
-		this->newStatus    = data;
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData) {
+		this->newStatus = newData;
 		this->oldStatus = oldData;
 
 		if (newStatus->refresh) {
@@ -876,15 +828,20 @@ class TemperatureScreen: public Screen
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData) {
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData) {
+
+		newStatus = newData;
+		oldStatus = oldData;
+
 		if (newStatus->refresh)
 		{
 			display.setTextSize(2);
-			display.setTextColor(GREEN);
+			display.setTextColor(textColor);
 			display.setCursor(3,23);
 			display.print("Temperature:\nWork in progress...");
 		}
 	}
+
 	bool wasTapped(int x, int y) {
 		return 118 < x && x <= 215 && 320 >= y && y > 213;
 	}
@@ -895,11 +852,13 @@ class AltitudeScreen: public Screen
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData){
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData){
+		newStatus = newData;
+		oldStatus = oldData;
 		if (newStatus->refresh)
 		{
 			display.setTextSize(2);
-			display.setTextColor(GREEN);
+			display.setTextColor(textColor);
 			display.setCursor(3,23);
 			display.print("Altitude:\nWork in progress...");
 		}
@@ -914,11 +873,13 @@ class SatellitesScreen: public Screen
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData){
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData){
+		newStatus = newData;
+		oldStatus = oldData;
 		if (newStatus->refresh)
 		{
 			display.setTextSize(2);
-			display.setTextColor(GREEN);
+			display.setTextColor(textColor);
 			display.setCursor(3,23);
 			display.print("Satellites:\nWork in progress...");
 		}
@@ -933,12 +894,14 @@ class LogsAndPointsScreen: public Screen
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData){
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData){
+		newStatus = newData;
+		oldStatus = oldData;
 		if (newStatus->refresh)
 		{
-			display.drawLine(0,130,320,130,GREEN);
+			display.drawLine(0,130,320,130,textColor);
 			display.setTextSize(2);
-			display.setTextColor(GREEN);
+			display.setTextColor(textColor);
 			display.setCursor(3,23);
 			display.print("Time and position:\nWork in progress...");
 		}
@@ -953,17 +916,17 @@ class SettingsScreen: public Screen
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 	public:
-	void displayScreen(GPS_Status* data, GPS_Status* oldData){
+	void displayScreen(GPS_Status* newData, GPS_Status* oldData){
+		newStatus = newData;
+		oldStatus = oldData;
 		if (newStatus->refresh)
 		{
 			display.setTextSize(2);
-			display.setTextColor(GREEN);
+			display.setTextColor(textColor);
 			display.setCursor(3,23);
-			display.print("Date and time:");
+			display.print("Settings:");
+
 		}
-		printCenteredText(newDate.getDate(), 5, GREEN, 320, 0, 75);
-		printCenteredText(newDate.getTime(), 5, GREEN, 320, 0, 145);
-		refresh = false;
 	}
 	bool wasTapped(int x, int y) {
 		return 118 <= x && x <= 240 && 0 <= y && y <= 320;
@@ -974,6 +937,7 @@ class BlankScreen: public Screen
 {
 	public:
 	void displayScreen(GPS_Status* data, GPS_Status* oldData){}
+
 	bool wasTapped(int x, int y) {
 		return 0 <= x && x <= 20 && 0 <= y && y <= 320;
 	}
@@ -1249,30 +1213,24 @@ void drawCircleLine(double degree, double circleX, double circleY, double rBegin
 
 void logPointToFile(DeviceAddress tempSensor) {
 	// Print the current time.
-	if (logfile.print(newDate.getISOTimestamp()) == 0) error(WRITE_ERROR);
-	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
+	if (logfile.print(newDate.getISOTimestamp()) == 0)  error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
 
 	// Print the latitude
-	if (logfile.print(GPS.latitudeDegrees,14) == 0)    error(WRITE_ERROR);
-	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
+	if (logfile.print(GPS.latitudeDegrees,14) == 0)     error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
 
 	// Print the longitude
-	if (logfile.print(GPS.longitudeDegrees,14) == 0)   error(WRITE_ERROR);
-	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
+	if (logfile.print(GPS.longitudeDegrees,14) == 0)    error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
 
 	// Print the altitude
-	if (logfile.print(GPS.altitude,14) == 0)           error(WRITE_ERROR);
-	if (logfile.print(';') == 0)                       error(WRITE_ERROR);
+	if (logfile.print(GPS.altitude,14) == 0)            error(WRITE_ERROR);
+	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
 
 	// Print the temperature.
-	if (sensors.getAddress(tempDeviceAddress, 0)) {
-		double temp = sensors.getTempC(tempSensor);
-		if (temp < minTemp) minTemp = temp;
-		if (temp > maxTemp) maxTemp = temp;
-		if (logfile.println(temp) == 0) error(WRITE_ERROR);
-	} else {
-		if (logfile.println("NULL") == 0) error(WRITE_ERROR);
-	}
+	if (logfile.println(newGpsStatus.temperature) == 0) error(WRITE_ERROR);
+
 	logfile.flush();
 }
 
@@ -1301,6 +1259,14 @@ void loop() {
 
 		if (currentScreen != 0)
 		{
+			if (currentScreen == 7) {
+				if (20 < p.x && p.x <= 118 && 320 >= p.y && p.y > 213){
+					textColor = BLUE;
+				}
+				if (20 < p.x && p.x <= 118 && 213 >= p.y && p.y > 107) {
+					textColor = GREEN;
+				}
+			}
 			currentScreen = 0;
 		} else {
 			for (int i = 1; i < 9; i++) {
@@ -1312,6 +1278,7 @@ void loop() {
 		}
 		display.fillRect(0,20,320,240, BLACK);
 		newGpsStatus.refresh = true;
+
 		screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
 		newGpsStatus.refresh = false;
 	} else if (!ts.touched()) {
@@ -1342,16 +1309,16 @@ void loop() {
 		double temp;
 		if (sensors.getAddress(tempDeviceAddress, 0)) {
 			newGpsStatus.temperature = sensors.getTempC(tempDeviceAddress);
-			currTemp = temp;
-			//if (temp < minTemp) minTemp = temp;
-			//if (temp > maxTemp) maxTemp = temp;
 		} else {
-			currTemp = -3.4028235E+38;
+			newGpsStatus.temperature = NULL;
 		}
 
 		// Update the max speed.
 		if (newGpsStatus.speed > newGpsStatus.maxSpeed)
 			newGpsStatus.maxSpeed = newGpsStatus.speed;
+
+		newGpsStatus.acceleration = newGpsStatus.speed - oldGpsStatus.speed;
+
 
 		// Calculate the distance between the old and new points.
 		if (oldGpsStatus.lat != NULL && oldGpsStatus.lon != NULL) {
@@ -1361,12 +1328,12 @@ void loop() {
 			                                               newGpsStatus.lon);
 
 			// This will do for now.
-			newGpsStatus.avgSpeed = newGpsStatus.distance/trkpts*60*60;
+			newGpsStatus.avgSpeed = newGpsStatus.distance/newGpsStatus.points*60*60;
 		}
 
-		bool shouldLog = (!(LOG_FIXONLY && !GPS.fix)) && strstr(stringptr, "RMC");
 		// Rad. lets log it! Only if the GPS has aquired a fix!
-		if (shouldLog){
+		if ((!(LOG_FIXONLY && !GPS.fix)) && strstr(stringptr, "RMC")){
+			logPointToFile(tempDeviceAddress);
 			newGpsStatus.points++;
 		}
 		// Display the selected screen.
@@ -1374,10 +1341,6 @@ void loop() {
 
 		// Do not refresh the elements that do not have to be refreshed again.
 		newGpsStatus.refresh = false;
-
-		if (shouldLog){
-			logPointToFile(tempDeviceAddress);
-		}
 
 		oldGpsStatus = newGpsStatus;
 		oldDate      = newDate;
