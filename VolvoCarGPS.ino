@@ -36,15 +36,16 @@
 #define SCREEN_HEIGHT 240
 
 // Colors
-#define	BLACK   0x0000
-#define	BLUE    0x001F
-#define	RED     0xF800
-#define	GREEN   0xDFEF
-#define CYAN    0x07FF
-#define MAGENTA 0xF81F
-#define YELLOW  0xFFE0
-#define WHITE   0xFFFF
-#define GREY    0xE71C
+#define	BLACK     0x0000
+#define	BLUE      0x001F
+#define	VOLVOBLUE 0x001E
+#define	RED       0xF800
+#define	GREEN     0xDFEF
+#define CYAN      0x07FF
+#define MAGENTA   0xF81F
+#define YELLOW    0xFFE0
+#define WHITE     0xFFFF
+#define GREY      0xE71C
 
 enum Error {
 	INIT_ERROR,
@@ -996,7 +997,7 @@ void setup() {
 	display.setRotation(1);
 	display.fillScreen(BLACK);
 	display.drawBitmap(96, 43, volvo_2_top, 128, 48, GREY);
-	display.drawBitmap(96, 92, volvo_2_middle, 128, 28, BLUE);
+	display.drawBitmap(96, 92, volvo_2_middle, 128, 28, VOLVOBLUE);
 	display.drawBitmap(96, 121, volvo_2_bottom, 128, 47, GREY);
 	printCenteredText("Initializing...", 2, WHITE, 320, 0, 188);
 	sensors.begin();
