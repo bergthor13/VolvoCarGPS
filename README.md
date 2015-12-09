@@ -29,7 +29,7 @@ Satellites Screen
 
 Log and Point Screen
 
-Date and Time Screen
+Settings Screen
 
 ## The Log File
 Here is how the log file is structured. It is a CSV file that contains the following fields:
