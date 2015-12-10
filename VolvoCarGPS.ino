@@ -26,7 +26,7 @@
 #define DISPLAYBUTTON 40
 
 // Options
-#define GPSECHO               false
+#define GPSECHO               true
 #define LOG_FIXONLY           true
 #define TEMPERATURE_PRECISION 11
 #define MAX_SPEED 90
@@ -857,17 +857,55 @@ class SatellitesScreen: public Screen
 {
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
+
+    void displayCompassOutline() {
+        display.drawCircle(160, 130, 100, textColor);
+        drawCircleLine(0, 160, 130, 0, 100, GREEN);
+        drawCircleLine(30, 160, 130, 0, 100, GREEN);
+        drawCircleLine(60, 160, 130, 0, 100, GREEN);
+        drawCircleLine(90, 160, 130, 0, 100, GREEN);
+        drawCircleLine(120, 160, 130, 0, 100, GREEN);
+        drawCircleLine(150, 160, 130, 0, 100, GREEN);
+        drawCircleLine(180, 160, 130, 0, 100, GREEN);
+        drawCircleLine(210, 160, 130, 0, 100, GREEN);
+        drawCircleLine(240, 160, 130, 0, 100, GREEN);
+        drawCircleLine(270, 160, 130, 0, 100, GREEN);
+        drawCircleLine(300, 160, 130, 0, 100, GREEN);
+        drawCircleLine(330, 160, 130, 0, 100, GREEN);
+        display.drawCircle(160,130,50,GREEN);
+
+
+    }
+    void displaySatellitePoints() {
+        
+        for (int i = 0; i < GPS.satellitesInView; i++) {
+            if (GPS.satelliteDetail[i].snr == NULL) {
+                display.fillCircle((160 + (map(GPS.satelliteDetail[i].elevation, 0, 90, 100, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
+                                   (130 + (map(GPS.satelliteDetail[i].elevation, 0, 90, 100, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 3, WHITE);
+
+            } else {
+              display.fillCircle((160 + (map(GPS.satelliteDetail[i].elevation, 0, 90, 100, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
+                                 (130 + (map(GPS.satelliteDetail[i].elevation, 0, 90, 100, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 3, GREEN);
+
+            }
+        }
+    }
 	public:
 	void displayScreen(GPS_Status* newData, GPS_Status* oldData){
 		newStatus = newData;
 		oldStatus = oldData;
 		if (newStatus->refresh)
 		{
-			display.setTextSize(2);
-			display.setTextColor(textColor);
-			display.setCursor(3,23);
-			display.print("Satellites:\nWork in progress...");
+			displayCompassOutline();
 		}
+        displaySatellitePoints();
+
+        display.setTextSize(2);
+        display.setTextColor(textColor);
+        display.setCursor(3,23);
+        display.print(GPS.satellitesInView);
+
+
 	}
 	bool wasTapped(int x, int y) {
 		return 20 < x && x <= 118 && 213 >= y && y > 107;
@@ -1036,13 +1074,13 @@ void setup() {
 	printCenteredText("Starting GPS...", 2, WHITE, 320, 0, 188);
 	GPS.begin(9600);
 	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
 	// uncomment this line to turn on only the "minimum recommended" data
 	//GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
 	// For logging data, we don't suggest using anything but either RMC only or RMC+GGA
 	// to keep the log files at a reasonable size
 	// Set the update rate
-	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
+	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
 	// Turn off updates on antenna status, if the firmware permits it
 	GPS.sendCommand(PGCMD_NOANTENNA);
 
