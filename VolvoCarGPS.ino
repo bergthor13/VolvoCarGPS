@@ -64,8 +64,8 @@ File              logfile;                                            // The fil
 int          currentScreen = 0;         // The current screen that is displayed.
 
 bool         wasPressed = false,        // Tells if the screen has already been pressed.
-             gotFix = false,            // Tells if the GPS has gotten a fix since start.
-             usingInterrupt = false;    // Tells if we should use interrupts for parsing NMEA data.
+			 gotFix = false,            // Tells if the GPS has gotten a fix since start.
+			 usingInterrupt = false;    // Tells if we should use interrupts for parsing NMEA data.
 
 unsigned int logs = 0;                  // The number of the log on the SD card currently written to.
 unsigned int backgroundColor = BLACK;
@@ -245,6 +245,7 @@ struct DisplayDate {
 		date.concat(String(mth));
 		date.concat(".");
 		date.concat("20");
+		this->yr < 10 ? date.concat("0"):false;
 		date.concat(String(yr));
 		return date;
 	}
@@ -257,8 +258,9 @@ struct DisplayDate {
 		this->min < 10 ? date.concat("0"):false;
 		date.concat(String(min));
 		date.concat(":");
+		Serial.print(this->sec);
 		this->sec < 10 ? date.concat("0"):false;
-		date.concat(String(sec));
+		date.concat(String(this->sec));
 		return date;
 	}
 
@@ -303,24 +305,24 @@ struct GPS_Status
 	DisplayDate date();
 
 	double speed,
-	       angle,
-	       temperature,
-	       minTemp,
-	       maxTemp,
-	       altitude,
-	       acceleration,
-	       hdop,
-	       distance,
-	       avgSpeed,
-	       maxSpeed,
-	       lat,
-	       lon;
+		   angle,
+		   temperature,
+		   minTemp,
+		   maxTemp,
+		   altitude,
+		   acceleration,
+		   hdop,
+		   distance,
+		   avgSpeed,
+		   maxSpeed,
+		   lat,
+		   lon;
 
 	bool refresh;
 
 	int satellites,
-	    fix,
-	    points;
+		fix,
+		points;
 
 
 	GPS_Status() {
@@ -345,8 +347,8 @@ struct GPS_Status
 		this->hdop         = hdop;
 		this->lat          = lat;
 		this->lon          = lon;
-        this->satellites   = satellites;
-        this->fix          = fix;
+		this->satellites   = satellites;
+		this->fix          = fix;
 	}
 	void updateStatus(double speed, double angle, double altitude, double hdop, double lat, double lon, int satellites, int fix) {
 		this->speed        = speed;
@@ -355,8 +357,8 @@ struct GPS_Status
 		this->hdop         = hdop;
 		this->lat          = lat;
 		this->lon          = lon;
-        this->satellites   = satellites;
-        this->fix          = fix;
+		this->satellites   = satellites;
+		this->fix          = fix;
 	}
 };
 GPS_Status newGpsStatus;
@@ -416,7 +418,7 @@ class SummaryScreen: public Screen {
 				if      (newStatus->temperature <= -100 || newStatus->temperature >= 1000)
 					printCenteredText(String(newStatus->temperature, 0), 3, textColor, 107, 214, 64);
 				else if ((newStatus->temperature <= -10 && newStatus->temperature > -100) ||
-				         (newStatus->temperature >= 100 && newStatus->temperature < 1000))
+						 (newStatus->temperature >= 100 && newStatus->temperature < 1000))
 					printCenteredText(String(newStatus->temperature, 1), 3, textColor, 107, 214, 64);
 				else if (-10 < newStatus->temperature && newStatus->temperature < 100)
 					printCenteredText(String(newStatus->temperature, 2), 3, textColor, 107, 214, 64);
@@ -435,7 +437,7 @@ class SummaryScreen: public Screen {
 		if (oldStatus->altitude != newStatus->altitude || newStatus->refresh) {
 			if      (newStatus->altitude <= -100 || newStatus->altitude >= 1000)   printCenteredText(String(newStatus->altitude, 0), 3, textColor, 107, 214, 162);
 			else if ((newStatus->altitude <= -10 && newStatus->altitude > -100) ||
-			         (newStatus->altitude >= 100 && newStatus->altitude < 1000))   printCenteredText(String(newStatus->altitude, 1), 3, textColor, 107, 0, 162);
+					 (newStatus->altitude >= 100 && newStatus->altitude < 1000))   printCenteredText(String(newStatus->altitude, 1), 3, textColor, 107, 0, 162);
 			else if (-10 < newStatus->altitude && newStatus->altitude < 100)       printCenteredText(String(newStatus->altitude, 2), 3, textColor, 107, 0, 162);
 		}
 	}
@@ -756,16 +758,16 @@ class DirectionScreen: public Screen {
 
 		if (oldAngle != angle || newStatus->refresh) {
 			display.drawLine(160,
-			                 130,
-			                (160 + (90 * cos((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
-			                (130 + (90 * sin((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
-			                 backgroundColor);
+							 130,
+							(160 + (90 * cos((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
+							(130 + (90 * sin((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
+							 backgroundColor);
 
 			display.drawLine(160,
-			                 130,
-			                (160 + (90 * cos((angle * 1000.0 / 57296.0)-(PI/2)))),
-			                (130 + (90 * sin((angle * 1000.0 / 57296.0)-(PI/2)))),
-			                 RED);
+							 130,
+							(160 + (90 * cos((angle * 1000.0 / 57296.0)-(PI/2)))),
+							(130 + (90 * sin((angle * 1000.0 / 57296.0)-(PI/2)))),
+							 RED);
 		}
 		oldAngle = angle;
 	}
@@ -840,126 +842,126 @@ class SatellitesScreen: public Screen
 {
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
-    int screenDivider = 140;
-    int sphereX = screenDivider/2, sphereY = 130, sphereR = 68;
-    int oldSatellitesIV, oldFixQual;
-    Satellite oldSatDetails[20];
-    
-    void displayDataFieldOutlines() {
-        // Upper Horizontal Lines
-        display.drawLine(30, 60, 110, 60,  textColor); // Left
+	int screenDivider = 140;
+	int sphereX = screenDivider/2, sphereY = 130, sphereR = 68;
+	int oldSatellitesIV, oldFixQual;
+	Satellite oldSatDetails[20];
+	
+	void displayDataFieldOutlines() {
+		// Upper Horizontal Lines
+		display.drawLine(30, 60, 110, 60,  textColor); // Left
 
-        // Upper Vertical Lines
-        display.drawLine(30,20,30,60,textColor);       // Left
-        display.drawLine(110,20,110,60,textColor);       // Left
+		// Upper Vertical Lines
+		display.drawLine(30,20,30,60,textColor);       // Left
+		display.drawLine(110,20,110,60,textColor);       // Left
 
-        // Lower Horizontal Lines
-        display.drawLine(30,200,110,200,textColor);      // Left
+		// Lower Horizontal Lines
+		display.drawLine(30,200,110,200,textColor);      // Left
 
-        // Lower Vertical Lines
-        display.drawLine(30,200,30,240,textColor);     // Left
-        display.drawLine(110,200,110,240,textColor);     // Left
+		// Lower Vertical Lines
+		display.drawLine(30,200,30,240,textColor);     // Left
+		display.drawLine(110,200,110,240,textColor);     // Left
 
-    }
-    void displaySatellitesInView() {
-        if (newStatus->refresh) {
-            printCenteredText("SATELLITES",             1, textColor, 80, 30, 24);
-        }
-        if (oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
-            printCenteredText(String(GPS.satellitesInView), 2, textColor, 80, 30, 38);
-            oldSatellitesIV = GPS.satellitesInView;
-        }
+	}
+	void displaySatellitesInView() {
+		if (newStatus->refresh) {
+			printCenteredText("SATELLITES",             1, textColor, 80, 30, 24);
+		}
+		if (oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
+			printCenteredText(String(GPS.satellitesInView), 2, textColor, 80, 30, 38);
+			oldSatellitesIV = GPS.satellitesInView;
+		}
 
-    }
+	}
 
-    void displayFix() {
-        if (newStatus->refresh) {
-            printCenteredText("FIX",  1, textColor, 80, 30, 205);
-        }
+	void displayFix() {
+		if (newStatus->refresh) {
+			printCenteredText("FIX",  1, textColor, 80, 30, 205);
+		}
 
-        if (oldFixQual != GPS.fixquality || newStatus->refresh) {
-            if (GPS.fixquality == 0) {
-                printCenteredText("No Fix", 2, textColor, 80, 30, 219);
-            } else if (GPS.fixquality == 1) {
-                printCenteredText("GPS", 2, textColor, 80, 30, 219);
-            } else if (GPS.fixquality == 2) {
-                printCenteredText("DGPS", 2, textColor, 80, 30, 219);
-            }
-            oldFixQual = GPS.fixquality;
-        }
+		if (oldFixQual != GPS.fixquality || newStatus->refresh) {
+			if (GPS.fixquality == 0) {
+				printCenteredText("No Fix", 2, textColor, 80, 30, 219);
+			} else if (GPS.fixquality == 1) {
+				printCenteredText("GPS", 2, textColor, 80, 30, 219);
+			} else if (GPS.fixquality == 2) {
+				printCenteredText("DGPS", 2, textColor, 80, 30, 219);
+			}
+			oldFixQual = GPS.fixquality;
+		}
 
-    }
-    void displayCompassOutline() {
-        display.drawCircle(sphereX, sphereY, sphereR, textColor);
-        for (int i = 0; i < 360; i = i + 45) {
-            drawCircleLine(i, sphereX, sphereY, 0, sphereR, textColor);
-        }
-        display.drawCircle(sphereX,sphereY,sphereR/2,textColor);
+	}
+	void displayCompassOutline() {
+		display.drawCircle(sphereX, sphereY, sphereR, textColor);
+		for (int i = 0; i < 360; i = i + 45) {
+			drawCircleLine(i, sphereX, sphereY, 0, sphereR, textColor);
+		}
+		display.drawCircle(sphereX,sphereY,sphereR/2,textColor);
 
 
-    }
+	}
 
-    void displaySatellitePoints() {
+	void displaySatellitePoints() {
 
-        for (int i = 0; i < oldSatellitesIV; i++) {
-            display.fillCircle((sphereX + (map(oldSatDetails[i].elevation, 0, 90, sphereR, 0) * cos((oldSatDetails[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
-                               (sphereY + (map(oldSatDetails[i].elevation, 0, 90, sphereR, 0) * sin((oldSatDetails[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, backgroundColor);
+		for (int i = 0; i < oldSatellitesIV; i++) {
+			display.fillCircle((sphereX + (map(oldSatDetails[i].elevation, 0, 90, sphereR, 0) * cos((oldSatDetails[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
+							   (sphereY + (map(oldSatDetails[i].elevation, 0, 90, sphereR, 0) * sin((oldSatDetails[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, backgroundColor);
 
-        }
+		}
 
-        for (int i = 0; i < GPS.satellitesInView; i++) {
-            if (GPS.satelliteDetail[i].prn != NULL) {
-                if (GPS.satelliteDetail[i].snr == NULL) {
-                    display.fillCircle((sphereX + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
-                                       (sphereY + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, WHITE);
-                } else {
-                    display.fillCircle((sphereX + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
-                                       (sphereY + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, GREEN);
-                }
-            }
+		for (int i = 0; i < GPS.satellitesInView; i++) {
+			if (GPS.satelliteDetail[i].prn != NULL) {
+				if (GPS.satelliteDetail[i].snr == NULL) {
+					display.fillCircle((sphereX + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
+									   (sphereY + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, WHITE);
+				} else {
+					display.fillCircle((sphereX + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
+									   (sphereY + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, GREEN);
+				}
+			}
 
-            if (oldSatDetails[i].snr != GPS.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.satelliteDetail[i].prn) {
-                display.fillRect((13*i)+screenDivider, SCREEN_HEIGHT-220, 12, 220, backgroundColor);
-            }
+			if (oldSatDetails[i].snr != GPS.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.satelliteDetail[i].prn) {
+				display.fillRect((13*i)+screenDivider, SCREEN_HEIGHT-220, 12, 220, backgroundColor);
+			}
 
-            int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 220);
-            display.fillRect((13*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, 12, mapped, textColor);
-            display.setCursor((13*i)+screenDivider, SCREEN_HEIGHT-7);
-            display.setTextColor(textColor);
-            display.setTextSize(1);
-            if (GPS.satelliteDetail[i].prn != 0) {
-                if(GPS.satelliteDetail[i].prn < 10) display.print(0);
-                display.print(GPS.satelliteDetail[i].prn);
-            }
-            oldSatDetails[i].elevation = GPS.satelliteDetail[i].elevation;
-            oldSatDetails[i].azimuth = GPS.satelliteDetail[i].azimuth;
-        }
-    }
+			int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 220);
+			display.fillRect((13*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, 12, mapped, textColor);
+			display.setCursor((13*i)+screenDivider, SCREEN_HEIGHT-7);
+			display.setTextColor(textColor);
+			display.setTextSize(1);
+			if (GPS.satelliteDetail[i].prn != 0) {
+				if(GPS.satelliteDetail[i].prn < 10) display.print(0);
+				display.print(GPS.satelliteDetail[i].prn);
+			}
+			oldSatDetails[i].elevation = GPS.satelliteDetail[i].elevation;
+			oldSatDetails[i].azimuth = GPS.satelliteDetail[i].azimuth;
+		}
+	}
 
-    void displaySignalStrength() {
-        for (int i = 0; i < GPS.satellitesInView; i++) {
+	void displaySignalStrength() {
+		for (int i = 0; i < GPS.satellitesInView; i++) {
 
-        }
-    }
+		}
+	}
 
 	public:
 	void displayScreen(GPS_Status* newData, GPS_Status* oldData){
 		newStatus = newData;
 		oldStatus = oldData;
-        displayDataFieldOutlines();
-        displayCompassOutline();
-        if (newStatus->refresh)
+		displayDataFieldOutlines();
+		displayCompassOutline();
+		if (newStatus->refresh)
 		{
 			
 		}
-        displaySatellitesInView();
-        displayFix();
-        displaySatellitePoints();
-        displaySignalStrength();
+		displaySatellitesInView();
+		displayFix();
+		displaySatellitePoints();
+		displaySignalStrength();
 
-        for (int i = 0; i < 20; i++) {
-            oldSatDetails[i] = GPS.satelliteDetail[i];
-        }
+		for (int i = 0; i < 20; i++) {
+			oldSatDetails[i] = GPS.satelliteDetail[i];
+		}
 
 	}
 	bool wasTapped(int x, int y) {
@@ -1186,7 +1188,7 @@ void printTopBar() {
 		display.setCursor(3,3);
 		display.fillRect(0, 0, 320, 20, GREEN);
 		display.print(newDate.getDate());
-		display.print("         ");
+		display.print("        ");
 		display.print(newDate.getTime());
 		firstIteration = false;
 	} else {
@@ -1196,12 +1198,9 @@ void printTopBar() {
 			display.fillRect(3,3,10,14, GREEN);
 			display.fillRect(15,3,10,14, GREEN);
 			display.setCursor(3,3);
-			if (GPS.day < 10){
-				display.print("0");
-				display.print(GPS.day);
-			} else {
-				display.print(GPS.day);
-			}
+
+			if (GPS.day < 10) display.print("0");
+			display.print(GPS.day);
 		}
 
 		if (oldDate.mth != newDate.mth)
@@ -1209,12 +1208,9 @@ void printTopBar() {
 			display.fillRect(39,3,10,14, GREEN);
 			display.fillRect(51,3,10,14, GREEN);
 			display.setCursor(39,3);
-			if (GPS.month < 10){
-				display.print("0");
-				display.print(GPS.month);
-			} else {
-				display.print(GPS.month);
-			}
+			
+			if (GPS.month < 10) display.print("0");
+			display.print(GPS.month);
 		}
 
 		if (oldDate.yr != newDate.yr)
@@ -1222,12 +1218,9 @@ void printTopBar() {
 			display.fillRect(99,3,10,14, GREEN);
 			display.fillRect(111,3,10,14, GREEN);
 			display.setCursor(99,3);
-			if (GPS.year < 10){
-				display.print("0");
-				display.print(GPS.year, DEC);
-			} else {
-				display.print(GPS.year, DEC);
-			}
+			
+			if (GPS.year < 10) display.print("0");
+			display.print(GPS.year, DEC);
 		}
 
 		if (oldDate.hr != newDate.hr)
@@ -1235,12 +1228,9 @@ void printTopBar() {
 			display.fillRect(219,3,10,14, GREEN);
 			display.fillRect(231,3,10,14, GREEN);
 			display.setCursor(219,3);
-			if (GPS.hour < 10){
-				display.print("0");
-				display.print(GPS.hour);
-			} else {
-				display.print(GPS.hour);
-			}
+			
+			if (GPS.hour < 10) display.print("0");
+			display.print(GPS.hour);
 		}
 
 		if (oldDate.min != newDate.min)
@@ -1248,12 +1238,9 @@ void printTopBar() {
 			display.fillRect(255,3,10,14, GREEN);
 			display.fillRect(267,3,10,14, GREEN);
 			display.setCursor(255,3);
-			if (GPS.minute < 10){
-				display.print("0");
-				display.print(GPS.minute);
-			} else {
-				display.print(GPS.minute);
-			}
+			
+			if (GPS.minute < 10) display.print("0");
+			display.print(GPS.minute);
 		}
 
 		if (oldDate.sec != newDate.sec || oldDate.mil != newDate.mil)
@@ -1261,14 +1248,12 @@ void printTopBar() {
 			display.fillRect(291,3,10,14, GREEN);
 			display.fillRect(303,3,10,14, GREEN);
 			display.setCursor(291,3);
-      int addSecs = GPS.seconds;
-      if (GPS.milliseconds >= 500) addSecs++;
-			if (addSecs < 10){
-				display.print("0");
-				display.print(addSecs);
-			} else {
-				display.print(addSecs);
-			}
+			int addSecs = GPS.seconds;
+			Serial.println(addSecs);
+			if (GPS.milliseconds >= 500) addSecs++;
+			
+			if (addSecs < 10) display.print("0");
+			display.print(addSecs);
 		}
 	}
 }
@@ -1281,10 +1266,10 @@ int oldMaxSpeed = 999;
 
 void drawCircleLine(double degree, double circleX, double circleY, double rBegin, double rEnd, int color) {
 	display.drawLine((circleX + (rBegin * cos(degree * 1000.0/57296.0))),
-	                 (circleY + (rBegin * sin(degree * 1000.0/57296.0))),
-	                 (circleX + (rEnd   * cos(degree * 1000.0/57296.0))),
-	                 (circleY + (rEnd   * sin(degree * 1000.0/57296.0))),
-	                 color);
+					 (circleY + (rBegin * sin(degree * 1000.0/57296.0))),
+					 (circleX + (rEnd   * cos(degree * 1000.0/57296.0))),
+					 (circleY + (rEnd   * sin(degree * 1000.0/57296.0))),
+					 color);
 }
 
 void logPointToFile(DeviceAddress tempSensor) {
@@ -1342,10 +1327,10 @@ void loop() {
 				if (20 < p.x && p.x <= 118 && 213 >= p.y && p.y > 107) {
 					textColor = GREEN;
 				}
-                if (20 < p.x && p.x <= 118 && 107 >= p.y && p.y >= 0) {
-                    backgroundColor = WHITE;
-                    textColor = BLACK;
-                }
+				if (20 < p.x && p.x <= 118 && 107 >= p.y && p.y >= 0) {
+					backgroundColor = WHITE;
+					textColor = BLACK;
+				}
 			}
 			currentScreen = 0;
 		} else {
@@ -1383,10 +1368,10 @@ void loop() {
 
 		// Sentence parsed! Display updated data!
 		if (strstr(stringptr, "RMC")) {
-            newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
-            newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix);
-            printTopBar();
-        }
+			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
+			newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix);
+			printTopBar();
+		}
 
 
 		// Disabling the temperature readings.
@@ -1409,9 +1394,9 @@ void loop() {
 		// Calculate the distance between the old and new points.
 		if (oldGpsStatus.lat != NULL && oldGpsStatus.lon != NULL) {
 			newGpsStatus.distance += distanceBetweenPoints(oldGpsStatus.lat,
-			                                               newGpsStatus.lat,
-			                                               oldGpsStatus.lon,
-			                                               newGpsStatus.lon);
+														   newGpsStatus.lat,
+														   oldGpsStatus.lon,
+														   newGpsStatus.lon);
 			// This will do for now.
 			newGpsStatus.avgSpeed = newGpsStatus.distance/newGpsStatus.points*60*60;
 		}
@@ -1421,15 +1406,15 @@ void loop() {
 			logPointToFile(tempDeviceAddress);
 			newGpsStatus.points++;
 		}
-        if (strstr(stringptr, "RMC")) {
-            // Display the selected screen.
-            screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
-            // Do not refresh the elements that do not have to be refreshed again.
-            newGpsStatus.refresh = false;
+		if (strstr(stringptr, "RMC")) {
+			// Display the selected screen.
+			screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
+			// Do not refresh the elements that do not have to be refreshed again.
+			newGpsStatus.refresh = false;
 
-            oldGpsStatus = newGpsStatus;
-            oldDate      = newDate;
-        }
+			oldGpsStatus = newGpsStatus;
+			oldDate      = newDate;
+		}
 
 		
 	}
