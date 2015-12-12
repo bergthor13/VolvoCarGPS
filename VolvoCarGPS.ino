@@ -11,47 +11,7 @@
 #include <DallasTemperature.h>
 #include <Adafruit_FT6206.h>
 #include <math.h>
-
-// Pins
-#define LCD_CS    A3 // Chip Select goes to Analog 3
-#define LCD_CD    A2 // Command/Data goes to Analog 2
-#define LCD_WR    A1 // LCD Write goes to Analog 1
-#define LCD_RD    A0 // LCD Read goes to Analog 0
-#define LCD_RESET A4 // Can alternately just connect to Arduino's reset pin
-
-#define ONE_WIRE_BUS  31
-#define BACKLIGHT_PIN 44
-#define CHIPSELECT    10
-#define LEDPIN        13
-#define DISPLAYBUTTON 40
-
-// Options
-#define GPSECHO               false
-#define LOG_FIXONLY           true
-#define TEMPERATURE_PRECISION 11
-#define MAX_SPEED 90
-
-// The size of the screen
-#define SCREEN_WIDTH  320
-#define SCREEN_HEIGHT 240
-
-// Colors
-#define	BLACK     0x0000
-#define	BLUE      0x001F
-#define	VOLVOBLUE 0x001E
-#define	RED       0xF800
-#define	GREEN     0xDFEF
-#define CYAN      0x07FF
-#define MAGENTA   0xF81F
-#define YELLOW    0xFFE0
-#define WHITE     0xFFFF
-#define GREY      0xE71C
-
-enum Error {
-	INIT_ERROR,
-	FILE_ERROR,
-	WRITE_ERROR
-};
+#include "SharedFunctions.cpp"
 
 Adafruit_GPS      GPS(&Serial1);                                      // Library driver for the GPS.
 Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET); // Library driver for the TFT LCD.
@@ -60,6 +20,7 @@ OneWire           oneWire(ONE_WIRE_BUS);                              // Library
 DallasTemperature sensors(&oneWire);                                  // Library for the digital temperature sensor.
 DeviceAddress     tempDeviceAddress;                                  // Library for the digital temperature sensor.
 File              logfile;                                            // The file to write to.
+SharedFunctions   sharedFunc;
 
 int          currentScreen = 0;         // The current screen that is displayed.
 
@@ -68,9 +29,9 @@ bool         wasPressed = false,        // Tells if the screen has already been 
 			 usingInterrupt = false;    // Tells if we should use interrupts for parsing NMEA data.
 
 unsigned int logs = 0;                  // The number of the log on the SD card currently written to.
-unsigned int backgroundColor = BLACK;
-unsigned int textColor = GREEN;
 
+unsigned int backgroundColor = BLACK;
+unsigned int textColor       = GREEN;
 
 const unsigned char  PROGMEM volvo_2_top [] = {
 	B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000011, B11111111, B11111111, B11000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000,
@@ -202,15 +163,63 @@ const unsigned char  PROGMEM volvo_2_bottom [] = {
 	B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000001, B10000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000
 };
 
+enum Error {
+    INIT_ERROR,
+    FILE_ERROR,
+    WRITE_ERROR
+};
 
+// A custom map function for float numbers.
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
+	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+// A function that draws a line between two radius points of a circle, rBegin and rEnd, of a chosen degree
+// with the center of the circle at the point (circleX, circleY).
+void drawCircleLine(double degree, double circleX, double circleY, double rBegin, double rEnd, int color) {
+	display.drawLine((circleX + (rBegin * cos(degree * 1000.0/57296.0))),
+					 (circleY + (rBegin * sin(degree * 1000.0/57296.0))),
+					 (circleX + (rEnd   * cos(degree * 1000.0/57296.0))),
+					 (circleY + (rEnd   * sin(degree * 1000.0/57296.0))),
+					 color);
+}
 
 void printCenteredText(String text, int textSize, int color, int areaWidth, int offset, int y) {
-	int x = (areaWidth-(text.length()*textSize*5+textSize*(text.length()-1)))/2+offset;
-	display.setTextSize(textSize);
-	display.setCursor(x,y);
-	display.setTextColor(color);
-	display.fillRect(offset+1,y,areaWidth-2,textSize*8, backgroundColor);
-	display.print(text);
+    int x = (areaWidth-(text.length()*textSize*5+textSize*(text.length()-1)))/2+offset;
+    display.setTextSize(textSize);
+    display.setCursor(x,y);
+    display.setTextColor(color);
+    display.fillRect(offset+1,y,areaWidth-2,textSize*8, backgroundColor);
+    display.print(text);
+}
+
+
+
+// blink out an error code
+void error(Error error) {
+    display.fillScreen(BLACK);
+    switch (error) {
+        case INIT_ERROR:
+            printCenteredText("ERROR",                5, RED, 320, 0, 71);
+            printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
+            printCenteredText("it couldn't be",       2, RED, 320, 0, 136);
+            printCenteredText("initialized.",         2, RED, 320, 0, 155);
+            break;
+        case FILE_ERROR:
+            printCenteredText("ERROR",               5, RED, 320, 0, 71);
+            printCenteredText("The required file",   2, RED, 320, 0, 117);
+            printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
+            break;
+        case WRITE_ERROR:
+            printCenteredText("ERROR",               5, RED, 320, 0, 71);
+            printCenteredText("Couldn't write to",   2, RED, 320, 0, 117);
+            printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
+            printCenteredText("been removed.",       2, RED, 320, 0, 155);
+            break;
+    }
+    while (1) {
+        delay(5000);
+    }
 }
 
 struct DisplayDate {
@@ -321,23 +330,24 @@ struct GPS_Status
 	bool refresh;
 
 	int satellites,
-		fix,
-		points;
+		fix;
+	
+    unsigned int points;
 
 
 	GPS_Status() {
-		this->speed = NULL;
-		this->angle = NULL;
-		this->temperature = NULL;
-		this->altitude = NULL;
+		this->speed        = NULL;
+		this->angle        = NULL;
+		this->temperature  = NULL;
+		this->altitude     = NULL;
 		this->acceleration = NULL;
-		this->hdop = NULL;
-		this->points = NULL;
-		this->distance = NULL;
-		this->avgSpeed = NULL;
-		this->maxSpeed = NULL;
-		this->lat = NULL;
-		this->lon = NULL;
+		this->hdop         = NULL;
+		this->points       = NULL;
+		this->distance     = NULL;
+		this->avgSpeed     = NULL;
+		this->maxSpeed     = NULL;
+		this->lat          = NULL;
+		this->lon          = NULL;
 	}
 
 	GPS_Status(double speed, double angle, double altitude, double hdop, double lat, double lon, int satellites, int fix) {
@@ -364,14 +374,17 @@ struct GPS_Status
 GPS_Status newGpsStatus;
 GPS_Status oldGpsStatus;
 
-class Screen {
+
+class Screen
+{
 	public:
 	virtual void displayScreen(GPS_Status* data, GPS_Status* oldData);
 	virtual bool wasTapped(int x, int y);
 };
 Screen*           screens[9];
 
-class SummaryScreen: public Screen {
+class SummaryScreen: public Screen
+{
 
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
@@ -396,9 +409,9 @@ class SummaryScreen: public Screen {
 			printCenteredText("DIRECTION", 1, textColor, 107, 107, 30);
 		}
 
-		String dir = getDirection(newStatus->angle);
+		String dir = sharedFunc.getDirection(newStatus->angle);
 
-		if (getDirection(oldStatus->angle) != dir || newStatus->refresh) {
+		if (sharedFunc.getDirection(oldStatus->angle) != dir || newStatus->refresh) {
 			printCenteredText(dir, 3, textColor, 107, 107, 64);
 		}
 
@@ -533,7 +546,8 @@ class SummaryScreen: public Screen {
 	}
 };
 
-class SpeedScreen: public Screen {
+class SpeedScreen: public Screen
+{
 	GPS_Status* newStatus;
 	GPS_Status* oldStatus;
 
@@ -668,7 +682,8 @@ class SpeedScreen: public Screen {
 	}
 };
 
-class DirectionScreen: public Screen {
+class DirectionScreen: public Screen
+{
 	float oldAngle, oldSpeed, oldAltitude;
 	String oldDirection;
 	GPS_Status* newStatus;
@@ -697,7 +712,7 @@ class DirectionScreen: public Screen {
 			printCenteredText("DIRECTION", 1, textColor, 80, 0,   24);
 		}
 
-		String dir = getDirection(angle);
+		String dir = sharedFunc.getDirection(angle);
 		if (this->oldDirection != dir || newStatus->refresh) {
 			printCenteredText(dir, 2, textColor, 80, 0, 38);
 		}
@@ -757,17 +772,8 @@ class DirectionScreen: public Screen {
 	void displayCompassDirection(float angle) {
 
 		if (oldAngle != angle || newStatus->refresh) {
-			display.drawLine(160,
-							 130,
-							(160 + (90 * cos((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
-							(130 + (90 * sin((oldAngle * 1000.0 / 57296.0)-(PI/2)))),
-							 backgroundColor);
-
-			display.drawLine(160,
-							 130,
-							(160 + (90 * cos((angle * 1000.0 / 57296.0)-(PI/2)))),
-							(130 + (90 * sin((angle * 1000.0 / 57296.0)-(PI/2)))),
-							 RED);
+			drawCircleLine(oldAngle, 160,130, 0, 90, backgroundColor);
+			drawCircleLine(angle, 160,130, 0, 90, RED);
 		}
 		oldAngle = angle;
 	}
@@ -885,7 +891,7 @@ class SatellitesScreen: public Screen
 			} else if (GPS.fixquality == 1) {
 				printCenteredText("GPS", 2, textColor, 80, 30, 219);
 			} else if (GPS.fixquality == 2) {
-				printCenteredText("DGPS", 2, textColor, 80, 30, 219);
+				printCenteredText("D-GPS", 2, textColor, 80, 30, 219);
 			}
 			oldFixQual = GPS.fixquality;
 		}
@@ -904,19 +910,20 @@ class SatellitesScreen: public Screen
 	void displaySatellitePoints() {
 
 		for (int i = 0; i < oldSatellitesIV; i++) {
-			display.fillCircle((sphereX + (map(oldSatDetails[i].elevation, 0, 90, sphereR, 0) * cos((oldSatDetails[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
-							   (sphereY + (map(oldSatDetails[i].elevation, 0, 90, sphereR, 0) * sin((oldSatDetails[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, backgroundColor);
+			int mappedElevation = map(oldSatDetails[i].elevation, 0, 90, sphereR, 0);
+			Points p = sharedFunc.getCirclePoint(oldSatDetails[i].azimuth, sphereX, sphereY, mappedElevation);
+			display.fillCircle(p.x, p.y, 2, backgroundColor);
 
 		}
 
 		for (int i = 0; i < GPS.satellitesInView; i++) {
 			if (GPS.satelliteDetail[i].prn != NULL) {
+				int mappedElevation = map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0);
+				Points p = sharedFunc.getCirclePoint(GPS.satelliteDetail[i].azimuth, sphereX, sphereY, mappedElevation);
 				if (GPS.satelliteDetail[i].snr == NULL) {
-					display.fillCircle((sphereX + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
-									   (sphereY + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, WHITE);
+					display.fillCircle(p.x, p.y, 2, WHITE);
 				} else {
-					display.fillCircle((sphereX + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * cos((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))),
-									   (sphereY + (map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0) * sin((GPS.satelliteDetail[i].azimuth * 1000.0 / 57296.0)-(PI/2)))), 2, GREEN);
+					display.fillCircle(p.x, p.y, 2, GREEN);
 				}
 			}
 
@@ -1025,63 +1032,14 @@ class BlankScreen: public Screen
 
 void useInterrupt(boolean);
 
-uint8_t parseHex(char c) {
-	if (c < '0')
-		return 0;
-	if (c <= '9')
-		return c - '0';
-	if (c < 'A')
-		return 0;
-	if (c <= 'F')
-		return (c - 'A')+10;
-}
-
-// blink out an error code
-void error(Error error) {
-	display.fillScreen(BLACK);
-	switch (error) {
-		case INIT_ERROR:
-			printCenteredText("ERROR",                5, RED, 320, 0, 71);
-			printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
-			printCenteredText("it couldn't be",       2, RED, 320, 0, 136);
-			printCenteredText("initialized.",         2, RED, 320, 0, 155);
-			break;
-		case FILE_ERROR:
-			printCenteredText("ERROR", 5, RED, 320, 0, 71);
-			printCenteredText("The required file", 2, RED, 320, 0, 117);
-			printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
-			break;
-		case WRITE_ERROR:
-			printCenteredText("ERROR", 5, RED, 320, 0, 71);
-			printCenteredText("Couldn't write to", 2, RED, 320, 0, 117);
-			printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
-			printCenteredText("been removed.", 2, RED, 320, 0, 155);
-			break;
-	}
-	while (1) {
-		delay(5000);
-	}
-}
-String getDirection(double angle) {
-	if (angle >= 337 && angle <= 360) return "N";
-	if (angle >= 0   && angle < 22)   return "N";
-	if (angle >= 67  && angle < 112)  return "E";
-	if (angle >= 157 && angle < 202)  return "S";
-	if (angle >= 247 && angle < 292)  return "W";
-	if (angle >= 22  && angle < 67)   return "NE";
-	if (angle >= 112 && angle < 157)  return "SE";
-	if (angle >= 202 && angle < 247)  return "SW";
-	if (angle >= 292 && angle < 337)  return "NW";
-}
-
 void setup() {
 	Serial.begin(115200);
 	display.reset();
 	display.begin(display.readID());
 	display.setRotation(1);
 	display.fillScreen(BLACK);
-	display.drawBitmap(96, 43, volvo_2_top, 128, 48, GREY);
-	display.drawBitmap(96, 92, volvo_2_middle, 128, 28, VOLVOBLUE);
+	display.drawBitmap(96, 43,  volvo_2_top,    128, 48, GREY);
+	display.drawBitmap(96, 92,  volvo_2_middle, 128, 28, VOLVOBLUE);
 	display.drawBitmap(96, 121, volvo_2_bottom, 128, 47, GREY);
 	printCenteredText("Initializing...", 2, WHITE, 320, 0, 188);
 	sensors.begin();
@@ -1100,7 +1058,7 @@ void setup() {
 
 	// make sure that the default chip select pin is set to
 	// output, even if you don't use it:
-	pinMode(CHIPSELECT, OUTPUT);
+	pinMode(CHIPSELECT,    OUTPUT);
 	pinMode(DISPLAYBUTTON, OUTPUT);
 	// see if the card is present and can be initialized:
 	if (!SD.begin(CHIPSELECT, 11, 12, 13)) {
@@ -1123,20 +1081,23 @@ void setup() {
 		logs = i+1;
 	}
 
+	// Open the file to write.
 	logfile = SD.open(filename, FILE_WRITE);
+	
+	// If the file still doesn't exist,
+	// or something else occurred.
 	if (!logfile) error(FILE_ERROR);
 
 	printCenteredText("Starting GPS...", 2, WHITE, 320, 0, 188);
 	GPS.begin(9600);
-	// uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
+	
+	// Tell the GPS to send over all data.
 	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
-	// uncomment this line to turn on only the "minimum recommended" data
-	//GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-	// For logging data, we don't suggest using anything but either RMC only or RMC+GGA
-	// to keep the log files at a reasonable size
+
 	// Set the update rate
 	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
-	// Turn off updates on antenna status, if the firmware permits it
+	
+	// Turn off updates on antenna status.
 	GPS.sendCommand(PGCMD_NOANTENNA);
 
 	GPS.sendCommand(PMTK_ENABLE_SBAS);
@@ -1258,19 +1219,7 @@ void printTopBar() {
 	}
 }
 
-float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
-	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
 
-int oldMaxSpeed = 999;
-
-void drawCircleLine(double degree, double circleX, double circleY, double rBegin, double rEnd, int color) {
-	display.drawLine((circleX + (rBegin * cos(degree * 1000.0/57296.0))),
-					 (circleY + (rBegin * sin(degree * 1000.0/57296.0))),
-					 (circleX + (rEnd   * cos(degree * 1000.0/57296.0))),
-					 (circleY + (rEnd   * sin(degree * 1000.0/57296.0))),
-					 color);
-}
 
 void logPointToFile(DeviceAddress tempSensor) {
 	// Print the current time.
