@@ -279,7 +279,6 @@ struct DisplayDate {
 		this->min < 10 ? date.concat("0"):false;
 		date.concat(String(min));
 		date.concat(":");
-		Serial.print(this->sec);
 		this->sec < 10 ? date.concat("0"):false;
 		date.concat(String(this->sec));
 		return date;
@@ -891,7 +890,6 @@ class SatellitesScreen: public Screen
 		display.drawFastVLine(110,200,40,textColor);     // Left
 	}
 	void displaySatellitesInView() {
-		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
 		if (newStatus->refresh) {
 			printCenteredText("SATELLITES",             1, textColor, 80, 0, 24);
 		}
@@ -902,7 +900,6 @@ class SatellitesScreen: public Screen
 	}
 
 		void displayHDOP() {
-		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
 		if (newStatus->refresh) {
 			printCenteredText("HDOP",             1, textColor, 80, 80, 24);
 		}
@@ -913,7 +910,6 @@ class SatellitesScreen: public Screen
 	}
 
 		void displayVDOP() {
-		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
 		if (newStatus->refresh) {
 			printCenteredText("VDOP",             1, textColor, 80, 160, 24);
 		}
@@ -924,7 +920,6 @@ class SatellitesScreen: public Screen
 	}
 
 		void displayPDOP() {
-		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
 		if (newStatus->refresh) {
 			printCenteredText("PDOP",             1, textColor, 80, 240, 24);
 		}
@@ -1033,7 +1028,7 @@ class SatellitesScreen: public Screen
 			}
 
 			// Update the old bars if they updated.
-			if (oldSatDetails[i].snr != GPS.sv.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.sv.satelliteDetail[i].prn || newStatus->refresh) {
+			if (oldSatDetails[i].snr != GPS.sv.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.sv.satelliteDetail[i].prn || oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
 				int width = setBarWidth(GPS.satellitesInView);
 
 				display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-220+80, width+1, 200, backgroundColor);
@@ -1063,7 +1058,12 @@ class SatellitesScreen: public Screen
 
 
 				display.fillRect(display.getCursorX(), display.getCursorY(), 11, 7, backgroundColor);
-				display.setTextColor(textColor);
+				if(GPS.sv.satelliteDetail[i].used){
+					display.setTextColor(textColor);
+				} else {
+					display.setTextColor(GREY);
+				}
+				
 				display.setTextSize(1);
 				if (GPS.sv.satelliteDetail[i].prn != 0) {
 					if(GPS.sv.satelliteDetail[i].prn < 10) display.print(0);
@@ -1427,6 +1427,16 @@ TS_Point rotatePoint(uint8_t r, TS_Point p)
 bool hasBeenPressed = false;
 double oldLat = NULL, oldLon = NULL;
 TS_Point pBegin, pEnd;
+
+void refreshScreen() {
+	display.fillScreen(backgroundColor);
+	firstIteration = true;
+	printTopBar();
+	newGpsStatus.refresh = true;
+	screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
+	newGpsStatus.refresh = false;
+}
+
 void loop() {
 	// if(ts.touched()) {
 	// 	Serial.print("(");
@@ -1452,10 +1462,49 @@ void loop() {
 					if (20 < pBegin.x && pBegin.x < 70 && 50 < pBegin.y && pBegin.y < 100){
 						textColor = GREEN;
 					}
-					if (90 < pBegin.x && pBegin.x < 140 && 50 >= pBegin.y && pBegin.y > 100) {
+					if (90 < pBegin.x && pBegin.x < 140 && 50 < pBegin.y && pBegin.y < 100) {
 						textColor = BLUE;
 					}
-					if ((pBegin.x-pEnd.x) > 50) {
+
+					if (20 < pBegin.x && pBegin.x < 70 && 120 < pBegin.y && pBegin.y < 170){
+						textColor = BLACK;
+					}
+					if (90 < pBegin.x && pBegin.x < 140 && 120 < pBegin.y && pBegin.y < 170) {
+						textColor = WHITE;
+					}
+
+					if (20 < pBegin.x && pBegin.x < 70 && 190 < pBegin.y && pBegin.y < 240){
+						textColor = RED;
+					}
+					if (90 < pBegin.x && pBegin.x < 140 && 190 < pBegin.y && pBegin.y < 240) {
+						textColor = YELLOW;
+					}
+
+
+					// Background color
+					if (160+20 < pBegin.x && pBegin.x < 210+20 && 50 < pBegin.y && pBegin.y < 100){
+						backgroundColor = GREEN;
+					}
+					if (160+90 < pBegin.x && pBegin.x < 210+90 && 50 < pBegin.y && pBegin.y < 100) {
+						backgroundColor = BLUE;
+					}
+
+					if (160+20 < pBegin.x && pBegin.x < 210+20 && 120 < pBegin.y && pBegin.y < 170){
+						backgroundColor = BLACK;
+					}
+					if (160+90 < pBegin.x && pBegin.x < 210+90 && 120 < pBegin.y && pBegin.y < 170) {
+						backgroundColor = WHITE;
+					}
+
+					if (160+20 < pBegin.x && pBegin.x < 210+20 && 190 < pBegin.y && pBegin.y < 240){
+						backgroundColor = RED;
+					}
+					if (160+90 < pBegin.x && pBegin.x < 210+90 && 190 < pBegin.y && pBegin.y < 240) {
+						backgroundColor = YELLOW;
+					}
+
+
+					if ((pBegin.x-pEnd.x) > 50 && (pEnd.x != 0 && pEnd.y != 240)) {
 						currentScreen = SUMMARY;
 					}
 				} else {
@@ -1470,13 +1519,9 @@ void loop() {
 					}
 				}
 			}
+			refreshScreen();
 			if (oldCurrScreen != currentScreen) {
-				display.fillScreen(backgroundColor);
-				firstIteration = true;
-				printTopBar();
-				newGpsStatus.refresh = true;
-				screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
-				newGpsStatus.refresh = false;
+				
 			}
 		}
 		hasBeenPressed = false;
@@ -1506,12 +1551,7 @@ void loop() {
 			if (newGpsStatus.fix) {
 				if(!gotFix){
 					currentScreen = SUMMARY;
-					display.fillScreen(backgroundColor);
-					firstIteration = true;
-					printTopBar();
-					newGpsStatus.refresh = true;
-					screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
-					newGpsStatus.refresh = false;
+					refreshScreen();
 				}
 				gotFix = true;
 			}
