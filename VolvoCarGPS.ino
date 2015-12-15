@@ -344,6 +344,7 @@ struct GPS_Status
 
 	int satellites,
 		fix,
+		fixquality,
 		satellitesInView;
 	
 	unsigned int points;
@@ -365,9 +366,10 @@ struct GPS_Status
 		this->lat              = NULL;
 		this->lon              = NULL;
 		this->satellitesInView = NULL;
+		this->fixquality       = NULL;
 	}
 
-	GPS_Status(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView) {
+	GPS_Status(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView, int fixquality) {
 		this->speed            = speed;
 		this->angle            = angle;
 		this->altitude         = altitude;
@@ -378,9 +380,10 @@ struct GPS_Status
 		this->lon              = lon;
 		this->satellites       = satellites;
 		this->fix              = fix;
+		this->fixquality       = fixquality;
 		this->satellitesInView = satellitesInView;
 	}
-	void updateStatus(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView) {
+	void updateStatus(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView, int fixquality) {
 		this->speed            = speed;
 		this->angle            = angle;
 		this->altitude         = altitude;
@@ -391,6 +394,7 @@ struct GPS_Status
 		this->lon              = lon;
 		this->satellites       = satellites;
 		this->fix              = fix;
+		this->fixquality       = fixquality;
 		this->satellitesInView = satellitesInView;
 	}
 };
@@ -481,6 +485,15 @@ class SummaryScreen: public Screen
 		if (newStatus->refresh) {
 			display.setCursor(131,128);
 			printCenteredText("SATELLITES", 1, textColor, 107, 107, 128);
+		}
+		if (oldStatus->fixquality != newStatus->fixquality || newStatus->refresh) {
+			if(newStatus->fixquality == 2){
+				printCenteredText("D-GPS", 1, textColor, 107, 107, 141);
+			} else {
+				printCenteredText("", 1, textColor, 107, 107, 141);
+
+			}
+			printCenteredText(String(newStatus->satellites) + "/" + GPS.satellitesInView, 3, textColor, 107, 107, 162);
 		}
 		if (oldStatus->satellitesInView != GPS.satellitesInView || oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
 			printCenteredText(String(newStatus->satellites) + "/" + GPS.satellitesInView, 3, textColor, 107, 107, 162);
@@ -1461,46 +1474,59 @@ void loop() {
 				if (currentScreen == SETTINGS) {
 					if (20 < pBegin.x && pBegin.x < 70 && 50 < pBegin.y && pBegin.y < 100){
 						textColor = GREEN;
+						refreshScreen();
+
 					}
 					if (90 < pBegin.x && pBegin.x < 140 && 50 < pBegin.y && pBegin.y < 100) {
 						textColor = BLUE;
+						refreshScreen();
 					}
 
 					if (20 < pBegin.x && pBegin.x < 70 && 120 < pBegin.y && pBegin.y < 170){
 						textColor = BLACK;
+						refreshScreen();
 					}
 					if (90 < pBegin.x && pBegin.x < 140 && 120 < pBegin.y && pBegin.y < 170) {
 						textColor = WHITE;
+						refreshScreen();
 					}
 
 					if (20 < pBegin.x && pBegin.x < 70 && 190 < pBegin.y && pBegin.y < 240){
 						textColor = RED;
+						refreshScreen();
 					}
 					if (90 < pBegin.x && pBegin.x < 140 && 190 < pBegin.y && pBegin.y < 240) {
 						textColor = YELLOW;
+						refreshScreen();
 					}
 
 
 					// Background color
 					if (160+20 < pBegin.x && pBegin.x < 210+20 && 50 < pBegin.y && pBegin.y < 100){
 						backgroundColor = GREEN;
+						refreshScreen();
 					}
 					if (160+90 < pBegin.x && pBegin.x < 210+90 && 50 < pBegin.y && pBegin.y < 100) {
 						backgroundColor = BLUE;
+						refreshScreen();
 					}
 
 					if (160+20 < pBegin.x && pBegin.x < 210+20 && 120 < pBegin.y && pBegin.y < 170){
 						backgroundColor = BLACK;
+						refreshScreen();
 					}
 					if (160+90 < pBegin.x && pBegin.x < 210+90 && 120 < pBegin.y && pBegin.y < 170) {
 						backgroundColor = WHITE;
+						refreshScreen();
 					}
 
 					if (160+20 < pBegin.x && pBegin.x < 210+20 && 190 < pBegin.y && pBegin.y < 240){
 						backgroundColor = RED;
+						refreshScreen();
 					}
 					if (160+90 < pBegin.x && pBegin.x < 210+90 && 190 < pBegin.y && pBegin.y < 240) {
 						backgroundColor = YELLOW;
+						refreshScreen();
 					}
 
 
@@ -1519,9 +1545,8 @@ void loop() {
 					}
 				}
 			}
-			refreshScreen();
 			if (oldCurrScreen != currentScreen) {
-				
+				refreshScreen();
 			}
 		}
 		hasBeenPressed = false;
@@ -1546,7 +1571,7 @@ void loop() {
 		// Sentence parsed! Display updated data!
 		if (strstr(stringptr, "RMC")) {
 			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
-			newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.VDOP, GPS.PDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix, GPS.satellitesInView);
+			newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.VDOP, GPS.PDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix, GPS.satellitesInView, GPS.fixquality);
 			printTopBar();
 			if (newGpsStatus.fix) {
 				if(!gotFix){
