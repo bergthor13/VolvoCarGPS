@@ -22,19 +22,19 @@ DeviceAddress     tempDeviceAddress;                                  // Library
 File              logfile;                                            // The file to write to.
 SharedFunctions   sharedFunc;
 enum ScreenName {
-    SUMMARY,
-    SPEED,
-    DIRECTION,
-    TEMPERATURE,
-    ALTITUDE,
-    SATELLITES,
-    LOGSANDPOINTS,
-    SETTINGS,
-    BLANK
+	SUMMARY,
+	SPEED,
+	DIRECTION,
+	TEMPERATURE,
+	ALTITUDE,
+	SATELLITES,
+	LOGSANDPOINTS,
+	SETTINGS,
+	BLANK
 };
 
-int          currentScreen = SUMMARY,
-             oldCurrScreen = -1;         // The current screen that is displayed.
+int          currentScreen = SATELLITES,
+			 oldCurrScreen = -1;         // The current screen that is displayed.
 
 bool         wasPressed = false,        // Tells if the screen has already been pressed.
 			 gotFix = false,            // Tells if the GPS has gotten a fix since start.
@@ -176,9 +176,9 @@ const unsigned char  PROGMEM volvo_2_bottom [] = {
 };
 
 enum Error {
-    INIT_ERROR,
-    FILE_ERROR,
-    WRITE_ERROR
+	INIT_ERROR,
+	FILE_ERROR,
+	WRITE_ERROR
 };
 
 // A custom map function for float numbers.
@@ -197,41 +197,41 @@ void drawCircleLine(double degree, double circleX, double circleY, double rBegin
 }
 
 void printCenteredText(String text, int textSize, int color, int areaWidth, int offset, int y) {
-    int x = (areaWidth-(text.length()*textSize*5+textSize*(text.length()-1)))/2+offset;
-    display.setTextSize(textSize);
-    display.setCursor(x,y);
-    display.setTextColor(color);
-    display.fillRect(offset+1,y,areaWidth-2,textSize*8, backgroundColor);
-    display.print(text);
+	int x = (areaWidth-(text.length()*textSize*5+textSize*(text.length()-1)))/2+offset;
+	display.setTextSize(textSize);
+	display.setCursor(x,y);
+	display.setTextColor(color);
+	display.fillRect(offset+1,y,areaWidth-2,textSize*8, backgroundColor);
+	display.print(text);
 }
 
 
 
 // blink out an error code
 void error(Error error) {
-    display.fillScreen(BLACK);
-    switch (error) {
-        case INIT_ERROR:
-            printCenteredText("ERROR",                5, RED, 320, 0, 71);
-            printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
-            printCenteredText("it couldn't be",       2, RED, 320, 0, 136);
-            printCenteredText("initialized.",         2, RED, 320, 0, 155);
-            break;
-        case FILE_ERROR:
-            printCenteredText("ERROR",               5, RED, 320, 0, 71);
-            printCenteredText("The required file",   2, RED, 320, 0, 117);
-            printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
-            break;
-        case WRITE_ERROR:
-            printCenteredText("ERROR",               5, RED, 320, 0, 71);
-            printCenteredText("Couldn't write to",   2, RED, 320, 0, 117);
-            printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
-            printCenteredText("been removed.",       2, RED, 320, 0, 155);
-            break;
-    }
-    while (1) {
-        delay(5000);
-    }
+	display.fillScreen(BLACK);
+	switch (error) {
+		case INIT_ERROR:
+			printCenteredText("ERROR",                5, RED, 320, 0, 71);
+			printCenteredText("SD card not found or", 2, RED, 320, 0, 117);
+			printCenteredText("it couldn't be",       2, RED, 320, 0, 136);
+			printCenteredText("initialized.",         2, RED, 320, 0, 155);
+			break;
+		case FILE_ERROR:
+			printCenteredText("ERROR",               5, RED, 320, 0, 71);
+			printCenteredText("The required file",   2, RED, 320, 0, 117);
+			printCenteredText("couldn't be created", 2, RED, 320, 0, 136);
+			break;
+		case WRITE_ERROR:
+			printCenteredText("ERROR",               5, RED, 320, 0, 71);
+			printCenteredText("Couldn't write to",   2, RED, 320, 0, 117);
+			printCenteredText("file. Card may have", 2, RED, 320, 0, 136);
+			printCenteredText("been removed.",       2, RED, 320, 0, 155);
+			break;
+	}
+	while (1) {
+		delay(5000);
+	}
 }
 
 struct DisplayDate {
@@ -333,6 +333,8 @@ struct GPS_Status
 		   altitude,
 		   acceleration,
 		   hdop,
+		   vdop,
+		   pdop,
 		   distance,
 		   avgSpeed,
 		   maxSpeed,
@@ -342,45 +344,55 @@ struct GPS_Status
 	bool refresh;
 
 	int satellites,
-		fix;
+		fix,
+		satellitesInView;
 	
-    unsigned int points;
+	unsigned int points;
 
 
 	GPS_Status() {
-		this->speed        = NULL;
-		this->angle        = NULL;
-		this->temperature  = NULL;
-		this->altitude     = NULL;
-		this->acceleration = NULL;
-		this->hdop         = NULL;
-		this->points       = NULL;
-		this->distance     = NULL;
-		this->avgSpeed     = NULL;
-		this->maxSpeed     = NULL;
-		this->lat          = NULL;
-		this->lon          = NULL;
+		this->speed            = NULL;
+		this->angle            = NULL;
+		this->temperature      = NULL;
+		this->altitude         = NULL;
+		this->acceleration     = NULL;
+		this->hdop             = NULL;
+		this->vdop             = NULL;
+		this->pdop             = NULL;
+		this->points           = NULL;
+		this->distance         = NULL;
+		this->avgSpeed         = NULL;
+		this->maxSpeed         = NULL;
+		this->lat              = NULL;
+		this->lon              = NULL;
+		this->satellitesInView = NULL;
 	}
 
-	GPS_Status(double speed, double angle, double altitude, double hdop, double lat, double lon, int satellites, int fix) {
-		this->speed        = speed;
-		this->angle        = angle;
-		this->altitude     = altitude;
-		this->hdop         = hdop;
-		this->lat          = lat;
-		this->lon          = lon;
-		this->satellites   = satellites;
-		this->fix          = fix;
+	GPS_Status(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView) {
+		this->speed            = speed;
+		this->angle            = angle;
+		this->altitude         = altitude;
+		this->hdop             = hdop;
+		this->vdop             = vdop;
+		this->pdop             = pdop;
+		this->lat              = lat;
+		this->lon              = lon;
+		this->satellites       = satellites;
+		this->fix              = fix;
+		this->satellitesInView = satellitesInView;
 	}
-	void updateStatus(double speed, double angle, double altitude, double hdop, double lat, double lon, int satellites, int fix) {
-		this->speed        = speed;
-		this->angle        = angle;
-		this->altitude     = altitude;
-		this->hdop         = hdop;
-		this->lat          = lat;
-		this->lon          = lon;
-		this->satellites   = satellites;
-		this->fix          = fix;
+	void updateStatus(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView) {
+		this->speed            = speed;
+		this->angle            = angle;
+		this->altitude         = altitude;
+		this->hdop             = hdop;
+		this->vdop             = vdop;
+		this->pdop             = pdop;
+		this->lat              = lat;
+		this->lon              = lon;
+		this->satellites       = satellites;
+		this->fix              = fix;
+		this->satellitesInView = satellitesInView;
 	}
 };
 GPS_Status newGpsStatus;
@@ -471,7 +483,7 @@ class SummaryScreen: public Screen
 			display.setCursor(131,128);
 			printCenteredText("SATELLITES", 1, textColor, 107, 107, 128);
 		}
-		if (oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
+		if (oldStatus->satellitesInView != GPS.satellitesInView || oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
 			printCenteredText(String(newStatus->satellites) + "/" + GPS.satellitesInView, 3, textColor, 107, 107, 162);
 		}
 
@@ -506,7 +518,6 @@ class SummaryScreen: public Screen
 		display.setTextSize(2);
 		if (GPS.fix) {
 			display.setCursor(35,221);
-			gotFix = true;
 			if (newGpsStatus.lat != oldGpsStatus.lat ||
 				newGpsStatus.lon != oldGpsStatus.lon || newStatus->refresh || newStatus->fix != oldStatus->fix) {
 
@@ -663,8 +674,8 @@ class SpeedScreen: public Screen
 		if (newStatus->refresh) {
 			printCenteredText("SATELLITES", 1, textColor, 80, 240, 65);
 		}
-		if (oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
-			printCenteredText(String(newStatus->satellites), 2, textColor, 80, 240, 79);
+		if (oldStatus->satellitesInView != GPS.satellitesInView || oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
+			printCenteredText(String(newStatus->satellites) + "/" + GPS.satellitesInView, 2, textColor, 80, 240, 79);
 		}
 	}
 
@@ -805,9 +816,9 @@ class DirectionScreen: public Screen
 		displaySpeed(GPS.speed*1.852);
 		displayAltitude(GPS.altitude);
 	}
-    bool wasTapped(int x, int y) {
-        return 107 < x && x < 213 && 20 < y && y < 118;
-    }
+	bool wasTapped(int x, int y) {
+		return 107 < x && x < 213 && 20 < y && y < 118;
+	}
 };
 
 class TemperatureScreen: public Screen
@@ -829,9 +840,9 @@ class TemperatureScreen: public Screen
 		}
 	}
 
-    bool wasTapped(int x, int y) {
-        return 213 < x && x < 320 && 20 < y && y < 118;
-    }
+	bool wasTapped(int x, int y) {
+		return 213 < x && x < 320 && 20 < y && y < 118;
+	}
 };
 
 class AltitudeScreen: public Screen
@@ -850,9 +861,9 @@ class AltitudeScreen: public Screen
 			display.print("Altitude:\nWork in progress...");
 		}
 	}
-    bool wasTapped(int x, int y) {
-        return 0 < x && x < 107 && 118 < y && y < 215;
-    }
+	bool wasTapped(int x, int y) {
+		return 0 < x && x < 107 && 118 < y && y < 215;
+	}
 };
 
 class SatellitesScreen: public Screen
@@ -865,12 +876,12 @@ class SatellitesScreen: public Screen
 	Satellite oldSatDetails[20];
 	
 	void displayDataFieldOutlines() {
-		// Upper Horizontal Lines
-		display.drawFastHLine(30, 60, 80, textColor); // Left
+		display.drawFastHLine(0,60,340,textColor);
 
-		// Upper Vertical Lines
-		display.drawFastVLine(30,20,40,textColor);       // Left
-		display.drawFastVLine(110,20,40,textColor);       // Left
+		display.drawLine(80,20,80,60,textColor);
+		display.drawLine(160,20,160,60,textColor);
+		display.drawLine(240,20,240,60,textColor);
+	
 
 		// Lower Horizontal Lines
 		display.drawFastHLine(30,200,80,textColor);      // Left
@@ -880,12 +891,45 @@ class SatellitesScreen: public Screen
 		display.drawFastVLine(110,200,40,textColor);     // Left
 	}
 	void displaySatellitesInView() {
+		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
 		if (newStatus->refresh) {
-			printCenteredText("SATELLITES",             1, textColor, 80, 30, 24);
+			printCenteredText("SATELLITES",             1, textColor, 80, 0, 24);
 		}
-		if (oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
-			printCenteredText(String(GPS.satellitesInView), 2, textColor, 80, 30, 38);
-			oldSatellitesIV = GPS.satellitesInView;
+		if (oldSatellitesIV != GPS.satellitesInView || oldStatus->satellites != newStatus->satellites || newStatus->refresh) {
+			printCenteredText(String(newStatus->satellites) + "/" + GPS.satellitesInView, 2, textColor, 80, 0, 38);
+		}
+
+	}
+
+		void displayHDOP() {
+		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
+		if (newStatus->refresh) {
+			printCenteredText("HDOP",             1, textColor, 80, 80, 24);
+		}
+		if (oldStatus->hdop != newStatus->hdop || newStatus->refresh) {
+			printCenteredText(String(newStatus->hdop, 2), 2, textColor, 80, 80, 38);
+		}
+
+	}
+
+		void displayVDOP() {
+		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
+		if (newStatus->refresh) {
+			printCenteredText("VDOP",             1, textColor, 80, 160, 24);
+		}
+		if (oldStatus->vdop != newStatus->vdop || newStatus->refresh) {
+			printCenteredText(String(newStatus->vdop, 2), 2, textColor, 80, 160, 38);
+		}
+
+	}
+
+		void displayPDOP() {
+		Serial.print(GPS.satellites); Serial.print(" - "); Serial.print(newStatus->satellites);
+		if (newStatus->refresh) {
+			printCenteredText("PDOP",             1, textColor, 80, 240, 24);
+		}
+		if (oldStatus->pdop != newStatus->pdop || newStatus->refresh) {
+			printCenteredText(String(newStatus->pdop, 2), 2, textColor, 80, 240, 38);
 		}
 
 	}
@@ -913,60 +957,128 @@ class SatellitesScreen: public Screen
 			drawCircleLine(i, sphereX, sphereY, 0, sphereR, textColor);
 		}
 		display.drawCircle(sphereX,sphereY,sphereR/2,textColor);
-
-
+	}
+	int setBarWidth(int satellites) {
+		switch(satellites) {
+			case 1:
+				return 179;
+			case 2:
+				return 90;
+			case 3:
+				return 59;
+			case 4:
+				return 44;
+			case 5:
+				return 35;
+			case 6:
+				return 29;
+			case 7:
+				return 25;
+			case 8:
+				return 22;
+			case 9:
+				return 19;
+			case 10:
+				return 17;
+			case 11:
+				return 15;
+			case 12:
+				return 14;
+			case 13:
+				return 13;
+			case 14:
+				return 12;
+			case 15:
+				return 11;
+			case 16:
+				return 10;
+			case 17:
+				return 9;
+			case 18:
+				return 9;
+			case 19:
+				return 8;
+			case 20:
+				return 8;
+			case 21:
+				return 7;
+			case 22:
+				return 7;
+		}
+		return 12;
 	}
 
 	void displaySatellitePoints() {
-
-		for (int i = 0; i < oldSatellitesIV; i++) {
-
-
+		if(oldSatellitesIV != GPS.satellitesInView || newStatus->refresh){
+			display.fillRect(screenDivider, SCREEN_HEIGHT-220+80, SCREEN_WIDTH-screenDivider, 220, backgroundColor);
 		}
-        int i;
+		int i;
 		for (i = 0; i < GPS.satellitesInView; i++) {
-            if (i < oldSatellitesIV) {
-                int mappedElevation = map(oldSatDetails[i].elevation, 0, 90, sphereR, 0);
-                Points p = sharedFunc.getCirclePoint(oldSatDetails[i].azimuth, sphereX, sphereY, mappedElevation);
-                display.fillCircle(p.x, p.y, 2, backgroundColor);
-            }
+			// Clear the old satellite dots.
+			if (i < oldSatellitesIV) {
+				int mappedElevation = map(oldSatDetails[i].elevation, 0, 90, sphereR, 0);
+				Points p = sharedFunc.getCirclePoint(oldSatDetails[i].azimuth, sphereX, sphereY, mappedElevation);
+				display.fillCircle(p.x, p.y, 2, backgroundColor);
+			}
 
-			if (GPS.satelliteDetail[i].prn != NULL) {
-				int mappedElevation = map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0);
-				Points p = sharedFunc.getCirclePoint(GPS.satelliteDetail[i].azimuth, sphereX, sphereY, mappedElevation);
-				if (GPS.satelliteDetail[i].snr == NULL) {
+			// Display the new satellite dots.
+			if (GPS.sv.satelliteDetail[i].prn != NULL) {
+				int mappedElevation = map(GPS.sv.satelliteDetail[i].elevation, 0, 90, sphereR, 0);
+				Points p = sharedFunc.getCirclePoint(GPS.sv.satelliteDetail[i].azimuth, sphereX, sphereY, mappedElevation);
+				if (!GPS.sv.satelliteDetail[i].used) {
 					display.fillCircle(p.x, p.y, 2, WHITE);
 				} else {
 					display.fillCircle(p.x, p.y, 2, GREEN);
 				}
 			}
 
-			if (oldSatDetails[i].snr != GPS.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.satelliteDetail[i].prn) {
-				display.fillRect((13*i)+screenDivider, SCREEN_HEIGHT-220, 12, 220, backgroundColor);
+			// Update the old bars if they updated.
+			if (oldSatDetails[i].snr != GPS.sv.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.sv.satelliteDetail[i].prn || newStatus->refresh) {
+				int width = setBarWidth(GPS.satellitesInView);
+
+				display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-220+80, width+1, 200, backgroundColor);
+				
+				if(GPS.satellitesInView >= 13){
+					int mapped = map(GPS.sv.satelliteDetail[i].snr, 0, 99, 0, 210);
+					if(GPS.sv.satelliteDetail[i].used){
+						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-20, width, mapped, textColor);
+					} else {
+						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-20, width, mapped, GREY);
+					}
+
+					if(i % 2 == 1){
+						display.setCursor(((width+1)*i)+screenDivider, SCREEN_HEIGHT-7);
+					} else {
+						display.setCursor(((width+1)*i)+screenDivider, SCREEN_HEIGHT-17);
+					}
+				} else {
+					int mapped = map(GPS.sv.satelliteDetail[i].snr, 0, 99, 0, 220);
+					if(GPS.sv.satelliteDetail[i].used){
+						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, width, mapped, textColor);
+					} else {
+						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, width, mapped, GREY);
+					}
+					display.setCursor(((width+1)*i)+screenDivider, SCREEN_HEIGHT-7);
+				}
+
+
+				display.fillRect(display.getCursorX(), display.getCursorY(), 11, 7, backgroundColor);
+				display.setTextColor(textColor);
+				display.setTextSize(1);
+				if (GPS.sv.satelliteDetail[i].prn != 0) {
+					if(GPS.sv.satelliteDetail[i].prn < 10) display.print(0);
+					display.print(GPS.sv.satelliteDetail[i].prn);
+				}
 			}
 
-			int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 220);
-			display.fillRect((13*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, 12, mapped, textColor);
-			display.setCursor((13*i)+screenDivider, SCREEN_HEIGHT-7);
-			display.setTextColor(textColor);
-			display.setTextSize(1);
-			if (GPS.satelliteDetail[i].prn != 0) {
-				if(GPS.satelliteDetail[i].prn < 10) display.print(0);
-				display.print(GPS.satelliteDetail[i].prn);
-			}
-			oldSatDetails[i].elevation = GPS.satelliteDetail[i].elevation;
-			oldSatDetails[i].azimuth = GPS.satelliteDetail[i].azimuth;
+			oldSatDetails[i].elevation = GPS.sv.satelliteDetail[i].elevation;
+			oldSatDetails[i].azimuth = GPS.sv.satelliteDetail[i].azimuth;
 		}
-        for (; i < oldSatellitesIV; i++) {
-            int mappedElevation = map(oldSatDetails[i].elevation, 0, 90, sphereR, 0);
-            Points p = sharedFunc.getCirclePoint(oldSatDetails[i].azimuth, sphereX, sphereY, mappedElevation);
-            display.fillCircle(p.x, p.y, 2, backgroundColor);
-        }
-	}
-
-	void displaySignalStrength() {
-		for (int i = 0; i < GPS.satellitesInView; i++) {
-
+		// Clear the rest of the points.
+		for (; i < oldSatellitesIV; i++) {
+			int mappedElevation = map(oldSatDetails[i].elevation, 0, 90, sphereR, 0);
+			Points p = sharedFunc.getCirclePoint(oldSatDetails[i].azimuth, sphereX, sphereY, mappedElevation);
+			display.fillCircle(p.x, p.y, 2, backgroundColor);
 		}
 	}
 
@@ -981,18 +1093,21 @@ class SatellitesScreen: public Screen
 			
 		}
 		displaySatellitesInView();
+		displayHDOP();
+		displayVDOP();
+		displayPDOP();
 		displayFix();
 		displaySatellitePoints();
-		displaySignalStrength();
 
 		for (int i = 0; i < 20; i++) {
-			oldSatDetails[i] = GPS.satelliteDetail[i];
+			oldSatDetails[i] = GPS.sv.satelliteDetail[i];
 		}
+		oldSatellitesIV = GPS.satellitesInView;
 
 	}
-    bool wasTapped(int x, int y) {
-        return 107 < x && x < 213 && 118 < y && y < 215;
-    }
+	bool wasTapped(int x, int y) {
+		return 107 < x && x < 213 && 118 < y && y < 215;
+	}
 };
 
 class LogsAndPointsScreen: public Screen
@@ -1013,9 +1128,9 @@ class LogsAndPointsScreen: public Screen
 		}
 	}
 
-    bool wasTapped(int x, int y) {
-        return 213 < x && x < 320 && 118 < y && y < 215;
-    }
+	bool wasTapped(int x, int y) {
+		return 213 < x && x < 320 && 118 < y && y < 215;
+	}
 };
 
 class SettingsScreen: public Screen
@@ -1028,31 +1143,31 @@ class SettingsScreen: public Screen
 		oldStatus = oldData;
 		if (newStatus->refresh) // (String text, int textSize, int color, int areaWidth, int offset, int y)
 		{
-            display.drawFastVLine(160,20,220, textColor);
-            printCenteredText("Text Color", 2, textColor, 160, 0, 24);
-            printCenteredText("Backg. Color", 2, textColor, 160, 160, 24);
-            display.fillRect(20,50,50,50, GREEN);
-            display.fillRect(90,50,50,50, BLUE);
+			display.drawFastVLine(160,20,220, textColor);
+			printCenteredText("Text Color", 2, textColor, 160, 0, 24);
+			printCenteredText("Backg. Color", 2, textColor, 160, 160, 24);
+			display.fillRect(20,50,50,50, GREEN);
+			display.fillRect(90,50,50,50, BLUE);
 
-            display.fillRect(20,120,50,50, BLACK);
-            display.fillRect(90,120,50,50, WHITE);
+			display.fillRect(20,120,50,50, BLACK);
+			display.fillRect(90,120,50,50, WHITE);
 
-            display.fillRect(20,190,50,50, RED);
-            display.fillRect(90,190,50,50, YELLOW);
+			display.fillRect(20,190,50,50, RED);
+			display.fillRect(90,190,50,50, YELLOW);
 
-            display.fillRect(160+20,50,50,50, GREEN);
-            display.fillRect(160+90,50,50,50, BLUE);
+			display.fillRect(160+20,50,50,50, GREEN);
+			display.fillRect(160+90,50,50,50, BLUE);
 
-            display.fillRect(160+20,120,50,50, BLACK);
-            display.fillRect(160+90,120,50,50, WHITE);
+			display.fillRect(160+20,120,50,50, BLACK);
+			display.fillRect(160+90,120,50,50, WHITE);
 
-            display.fillRect(160+20,190,50,50, RED);
-            display.fillRect(160+90,190,50,50, YELLOW);
+			display.fillRect(160+20,190,50,50, RED);
+			display.fillRect(160+90,190,50,50, YELLOW);
 		}
 	}
-    bool wasTapped(int x, int y) {
-        return 0 < x && x < 320 && 0 < y && y < 20;
-    }
+	bool wasTapped(int x, int y) {
+		return 0 < x && x < 320 && 0 < y && y < 20;
+	}
 };
 
 class BlankScreen: public Screen
@@ -1060,9 +1175,9 @@ class BlankScreen: public Screen
 	public:
 	void displayScreen(GPS_Status* data, GPS_Status* oldData){}
 
-    bool wasTapped(int x, int y) {
-        return 0 < x && x < 320 && 215 < y && y < 240;
-    }
+	bool wasTapped(int x, int y) {
+		return 0 < x && x < 320 && 215 < y && y < 240;
+	}
 };
 
 void useInterrupt(boolean);
@@ -1293,77 +1408,77 @@ double distanceBetweenPoints(double lat1, double lat2, double lon1, double lon2)
 }
 TS_Point rotatePoint(uint8_t r, TS_Point p)
 {
-    int x = p.x, y = p.y;
-    switch (r) {
-        case 0:
-            return p;
-        case 1:
-            p.x = y;
-            p.y = SCREEN_HEIGHT - x;
-            return p;
-        case 2:
+	int x = p.x, y = p.y;
+	switch (r) {
+		case 0:
+			return p;
+		case 1:
+			p.x = y;
+			p.y = SCREEN_HEIGHT - x;
+			return p;
+		case 2:
 
-        case 3:
-            p.x = p.y;
-            p.y = p.x;
-            return p;
-    }
+		case 3:
+			p.x = p.y;
+			p.y = p.x;
+			return p;
+	}
 }
 bool hasBeenPressed = false;
 double oldLat = NULL, oldLon = NULL;
 TS_Point pBegin, pEnd;
 void loop() {
-    if(ts.touched()) {
-        Serial.print("(");
-        Serial.print(rotatePoint(1, ts.getPoint()).x);
-        Serial.print(", ");
-        Serial.print(rotatePoint(1, ts.getPoint()).y);
-        Serial.println(")");
-    }
+	// if(ts.touched()) {
+	// 	Serial.print("(");
+	// 	Serial.print(rotatePoint(1, ts.getPoint()).x);
+	// 	Serial.print(", ");
+	// 	Serial.print(rotatePoint(1, ts.getPoint()).y);
+	// 	Serial.println(")");
+	// }
 
 	if (ts.touched() && !hasBeenPressed) {
 		hasBeenPressed = true;
 
 		pBegin = pEnd = rotatePoint(1, ts.getPoint());
 	} else if (ts.touched()) {
-        pEnd = rotatePoint(1, ts.getPoint());
-        oldCurrScreen = currentScreen;
-    } else if (!ts.touched()) {
+		pEnd = rotatePoint(1, ts.getPoint());
+		oldCurrScreen = currentScreen;
+	} else if (!ts.touched()) {
 
-        if (hasBeenPressed) {
-            if (currentScreen != SUMMARY)
-            {
-                if (currentScreen == SETTINGS) {
-                    if (20 < pBegin.x && pBegin.x < 70 && 50 < pBegin.y && pBegin.y < 100){
-                        textColor = GREEN;
-                    }
-                    if (90 < pBegin.x && pBegin.x < 140 && 50 >= pBegin.y && pBegin.y > 100) {
-                        textColor = BLUE;
-                    }
-                    if ((pBegin.x-pEnd.x) > 50) {
-                        currentScreen = SUMMARY;
-                    }
-                } else {
-                    currentScreen = SUMMARY;
-                }
+		if (hasBeenPressed) {
+			if (currentScreen != SUMMARY)
+			{
+				if (currentScreen == SETTINGS) {
+					if (20 < pBegin.x && pBegin.x < 70 && 50 < pBegin.y && pBegin.y < 100){
+						textColor = GREEN;
+					}
+					if (90 < pBegin.x && pBegin.x < 140 && 50 >= pBegin.y && pBegin.y > 100) {
+						textColor = BLUE;
+					}
+					if ((pBegin.x-pEnd.x) > 50) {
+						currentScreen = SUMMARY;
+					}
+				} else {
+					currentScreen = SUMMARY;
+				}
 
-            } else {
-                for (int i = 1; i < 9; i++) {
-                    if (screens[i]->wasTapped(pBegin.x, pBegin.y)) {
-                        currentScreen = i;
-                        break;
-                    }
-                }
-            }
-            if (oldCurrScreen != currentScreen) {
-                display.fillScreen(backgroundColor);
-                firstIteration = true;
-                printTopBar();
-                newGpsStatus.refresh = true;
-                screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
-                newGpsStatus.refresh = false;
-            }
-        }
+			} else {
+				for (int i = 1; i < 9; i++) {
+					if (screens[i]->wasTapped(pBegin.x, pBegin.y)) {
+						currentScreen = i;
+						break;
+					}
+				}
+			}
+			if (oldCurrScreen != currentScreen) {
+				display.fillScreen(backgroundColor);
+				firstIteration = true;
+				printTopBar();
+				newGpsStatus.refresh = true;
+				screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
+				newGpsStatus.refresh = false;
+			}
+		}
 		hasBeenPressed = false;
 	}
 
@@ -1382,12 +1497,24 @@ void loop() {
 
 		if (!GPS.parse(stringptr))   // this also sets the newNMEAreceived() flag to false
 			return;  // we can fail to parse a sentence in which case we should just wait for another
-
+			
 		// Sentence parsed! Display updated data!
 		if (strstr(stringptr, "RMC")) {
 			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
-			newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix);
+			newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.VDOP, GPS.PDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix, GPS.satellitesInView);
 			printTopBar();
+			if (newGpsStatus.fix) {
+				if(!gotFix){
+					currentScreen = SUMMARY;
+					display.fillScreen(backgroundColor);
+					firstIteration = true;
+					printTopBar();
+					newGpsStatus.refresh = true;
+					screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
+					newGpsStatus.refresh = false;
+				}
+				gotFix = true;
+			}
 		}
 
 
