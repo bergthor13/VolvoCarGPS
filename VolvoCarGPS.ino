@@ -347,7 +347,7 @@ struct GPS_Status
 		fixquality,
 		satellitesInView;
 	
-	unsigned int points;
+	uint32_t points;
 
 
 	GPS_Status() {
@@ -1030,10 +1030,10 @@ class SatellitesScreen: public Screen
 			}
 
 			// Display the new satellite dots.
-			if (GPS.sv.satelliteDetail[i].prn != NULL) {
-				int mappedElevation = map(GPS.sv.satelliteDetail[i].elevation, 0, 90, sphereR, 0);
-				Points p = sharedFunc.getCirclePoint(GPS.sv.satelliteDetail[i].azimuth, sphereX, sphereY, mappedElevation);
-				if (!GPS.sv.satelliteDetail[i].used) {
+			if (GPS.satelliteDetail[i].prn != NULL) {
+				int mappedElevation = map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0);
+				Points p = sharedFunc.getCirclePoint(GPS.satelliteDetail[i].azimuth, sphereX, sphereY, mappedElevation);
+				if (!GPS.satelliteDetail[i].used) {
 					display.fillCircle(p.x, p.y, 2, WHITE);
 				} else {
 					display.fillCircle(p.x, p.y, 2, GREEN);
@@ -1041,14 +1041,14 @@ class SatellitesScreen: public Screen
 			}
 
 			// Update the old bars if they updated.
-			if (oldSatDetails[i].snr != GPS.sv.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.sv.satelliteDetail[i].prn || oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
+			if (oldSatDetails[i].snr != GPS.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.satelliteDetail[i].prn || oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
 				int width = setBarWidth(GPS.satellitesInView);
 
 				display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-220+80, width+1, 200, backgroundColor);
 				
 				if(GPS.satellitesInView >= 13){
-					int mapped = map(GPS.sv.satelliteDetail[i].snr, 0, 99, 0, 210);
-					if(GPS.sv.satelliteDetail[i].used){
+					int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 210);
+					if(GPS.satelliteDetail[i].used){
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-20, width, mapped, textColor);
 					} else {
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-20, width, mapped, GREY);
@@ -1060,8 +1060,8 @@ class SatellitesScreen: public Screen
 						display.setCursor(((width+1)*i)+screenDivider, SCREEN_HEIGHT-17);
 					}
 				} else {
-					int mapped = map(GPS.sv.satelliteDetail[i].snr, 0, 99, 0, 220);
-					if(GPS.sv.satelliteDetail[i].used){
+					int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 220);
+					if(GPS.satelliteDetail[i].used){
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, width, mapped, textColor);
 					} else {
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, width, mapped, GREY);
@@ -1071,21 +1071,21 @@ class SatellitesScreen: public Screen
 
 
 				display.fillRect(display.getCursorX(), display.getCursorY(), 11, 7, backgroundColor);
-				if(GPS.sv.satelliteDetail[i].used){
+				if(GPS.satelliteDetail[i].used){
 					display.setTextColor(textColor);
 				} else {
 					display.setTextColor(GREY);
 				}
 				
 				display.setTextSize(1);
-				if (GPS.sv.satelliteDetail[i].prn != 0) {
-					if(GPS.sv.satelliteDetail[i].prn < 10) display.print(0);
-					display.print(GPS.sv.satelliteDetail[i].prn);
+				if (GPS.satelliteDetail[i].prn != 0) {
+					if(GPS.satelliteDetail[i].prn < 10) display.print(0);
+					display.print(GPS.satelliteDetail[i].prn);
 				}
 			}
 
-			oldSatDetails[i].elevation = GPS.sv.satelliteDetail[i].elevation;
-			oldSatDetails[i].azimuth = GPS.sv.satelliteDetail[i].azimuth;
+			oldSatDetails[i].elevation = GPS.satelliteDetail[i].elevation;
+			oldSatDetails[i].azimuth = GPS.satelliteDetail[i].azimuth;
 		}
 		// Clear the rest of the points.
 		for (; i < oldSatellitesIV; i++) {
@@ -1113,7 +1113,7 @@ class SatellitesScreen: public Screen
 		displaySatellitePoints();
 
 		for (int i = 0; i < 20; i++) {
-			oldSatDetails[i] = GPS.sv.satelliteDetail[i];
+			oldSatDetails[i] = GPS.satelliteDetail[i];
 		}
 		oldSatellitesIV = GPS.satellitesInView;
 
@@ -1444,7 +1444,9 @@ TS_Point pBegin, pEnd;
 void refreshScreen() {
 	display.fillScreen(backgroundColor);
 	firstIteration = true;
-	printTopBar();
+	if(currentScreen != BLANK){
+		printTopBar();
+	}
 	newGpsStatus.refresh = true;
 	screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
 	newGpsStatus.refresh = false;
@@ -1570,6 +1572,10 @@ void loop() {
 			
 		// Sentence parsed! Display updated data!
 		if (strstr(stringptr, "RMC")) {
+            if (GPS.speed*1.852 < 0.05) {
+                GPS.speed = 0.0;
+            }
+
 			newDate.updateDate(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds, GPS.milliseconds);
 			newGpsStatus.updateStatus(GPS.speed*1.852, GPS.angle, GPS.altitude, GPS.HDOP, GPS.VDOP, GPS.PDOP, GPS.latitudeDegrees, GPS.longitudeDegrees, GPS.satellites, GPS.fix, GPS.satellitesInView, GPS.fixquality);
 			printTopBar();
@@ -1581,7 +1587,6 @@ void loop() {
 				gotFix = true;
 			}
 		}
-
 
 		// Disabling the temperature readings.
 		// Read temperature from the sensor.
