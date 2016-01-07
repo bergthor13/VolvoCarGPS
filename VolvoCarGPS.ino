@@ -13,7 +13,7 @@
 #include <math.h>
 #include "SharedFunctions.cpp"
 
-Adafruit_GPS      GPS(&Serial1);                                      // Library driver for the GPS.
+Adafruit_GPS      GPS(&Serial3);                                      // Library driver for the GPS.
 Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET); // Library driver for the TFT LCD.
 Adafruit_FT6206   ts = Adafruit_FT6206();                             // Library driver for the touch.
 OneWire           oneWire(ONE_WIRE_BUS);                              // Library for the digital temperature sensor.
@@ -1030,10 +1030,10 @@ class SatellitesScreen: public Screen
 			}
 
 			// Display the new satellite dots.
-			if (GPS.satelliteDetail[i].prn != NULL) {
-				int mappedElevation = map(GPS.satelliteDetail[i].elevation, 0, 90, sphereR, 0);
-				Points p = sharedFunc.getCirclePoint(GPS.satelliteDetail[i].azimuth, sphereX, sphereY, mappedElevation);
-				if (!GPS.satelliteDetail[i].used) {
+			if (GPS.satelliteDetailGPS[i].prn != NULL) {
+				int mappedElevation = map(GPS.satelliteDetailGPS[i].elevation, 0, 90, sphereR, 0);
+				Points p = sharedFunc.getCirclePoint(GPS.satelliteDetailGPS[i].azimuth, sphereX, sphereY, mappedElevation);
+				if (!GPS.satelliteDetailGPS[i].used) {
 					display.fillCircle(p.x, p.y, 2, WHITE);
 				} else {
 					display.fillCircle(p.x, p.y, 2, GREEN);
@@ -1041,14 +1041,14 @@ class SatellitesScreen: public Screen
 			}
 
 			// Update the old bars if they updated.
-			if (oldSatDetails[i].snr != GPS.satelliteDetail[i].snr || oldSatDetails[i].prn != GPS.satelliteDetail[i].prn || oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
+			if (oldSatDetails[i].snr != GPS.satelliteDetailGPS[i].snr || oldSatDetails[i].prn != GPS.satelliteDetailGPS[i].prn || oldSatellitesIV != GPS.satellitesInView || newStatus->refresh) {
 				int width = setBarWidth(GPS.satellitesInView);
 
 				display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-220+80, width+1, 200, backgroundColor);
 				
 				if(GPS.satellitesInView >= 13){
-					int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 210);
-					if(GPS.satelliteDetail[i].used){
+					int mapped = map(GPS.satelliteDetailGPS[i].snr, 0, 99, 0, 210);
+					if(GPS.satelliteDetailGPS[i].used){
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-20, width, mapped, textColor);
 					} else {
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-20, width, mapped, GREY);
@@ -1060,8 +1060,8 @@ class SatellitesScreen: public Screen
 						display.setCursor(((width+1)*i)+screenDivider, SCREEN_HEIGHT-17);
 					}
 				} else {
-					int mapped = map(GPS.satelliteDetail[i].snr, 0, 99, 0, 220);
-					if(GPS.satelliteDetail[i].used){
+					int mapped = map(GPS.satelliteDetailGPS[i].snr, 0, 99, 0, 220);
+					if(GPS.satelliteDetailGPS[i].used){
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, width, mapped, textColor);
 					} else {
 						display.fillRect(((width+1)*i)+screenDivider, SCREEN_HEIGHT-1-mapped-10, width, mapped, GREY);
@@ -1071,21 +1071,21 @@ class SatellitesScreen: public Screen
 
 
 				display.fillRect(display.getCursorX(), display.getCursorY(), 11, 7, backgroundColor);
-				if(GPS.satelliteDetail[i].used){
+				if(GPS.satelliteDetailGPS[i].used){
 					display.setTextColor(textColor);
 				} else {
 					display.setTextColor(GREY);
 				}
 				
 				display.setTextSize(1);
-				if (GPS.satelliteDetail[i].prn != 0) {
-					if(GPS.satelliteDetail[i].prn < 10) display.print(0);
-					display.print(GPS.satelliteDetail[i].prn);
+				if (GPS.satelliteDetailGPS[i].prn != 0) {
+					if(GPS.satelliteDetailGPS[i].prn < 10) display.print(0);
+					display.print(GPS.satelliteDetailGPS[i].prn);
 				}
 			}
 
-			oldSatDetails[i].elevation = GPS.satelliteDetail[i].elevation;
-			oldSatDetails[i].azimuth = GPS.satelliteDetail[i].azimuth;
+			oldSatDetails[i].elevation = GPS.satelliteDetailGPS[i].elevation;
+			oldSatDetails[i].azimuth = GPS.satelliteDetailGPS[i].azimuth;
 		}
 		// Clear the rest of the points.
 		for (; i < oldSatellitesIV; i++) {
@@ -1113,7 +1113,7 @@ class SatellitesScreen: public Screen
 		displaySatellitePoints();
 
 		for (int i = 0; i < 20; i++) {
-			oldSatDetails[i] = GPS.satelliteDetail[i];
+			oldSatDetails[i] = GPS.satelliteDetailGPS[i];
 		}
 		oldSatellitesIV = GPS.satellitesInView;
 
@@ -1453,6 +1453,7 @@ void refreshScreen() {
 }
 
 void loop() {
+    // Serial.println(GPS.satellites);
 	// if(ts.touched()) {
 	// 	Serial.print("(");
 	// 	Serial.print(rotatePoint(1, ts.getPoint()).x);
@@ -1571,7 +1572,7 @@ void loop() {
 			return;  // we can fail to parse a sentence in which case we should just wait for another
 			
 		// Sentence parsed! Display updated data!
-		if (strstr(stringptr, "RMC")) {
+		if (strstr(stringptr, "GGA")) {
             if (GPS.speed*1.852 < 0.05) {
                 GPS.speed = 0.0;
             }
@@ -1620,7 +1621,7 @@ void loop() {
 			logPointToFile(tempDeviceAddress);
 			newGpsStatus.points++;
 		}
-		if (strstr(stringptr, "RMC")) {
+		if (strstr(stringptr, "GGA")) {
 			// Display the selected screen.
 			screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
 			// Do not refresh the elements that do not have to be refreshed again.
