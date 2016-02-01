@@ -369,20 +369,6 @@ struct GPS_Status
 		this->fixquality       = NULL;
 	}
 
-	GPS_Status(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView, int fixquality) {
-		this->speed            = speed;
-		this->angle            = angle;
-		this->altitude         = altitude;
-		this->hdop             = hdop;
-		this->vdop             = vdop;
-		this->pdop             = pdop;
-		this->lat              = lat;
-		this->lon              = lon;
-		this->satellites       = satellites;
-		this->fix              = fix;
-		this->fixquality       = fixquality;
-		this->satellitesInView = satellitesInView;
-	}
 	void updateStatus(double speed, double angle, double altitude, double hdop, double vdop, double pdop, double lat, double lon, int satellites, int fix, int satellitesInView, int fixquality) {
 		this->speed            = speed;
 		this->angle            = angle;
@@ -421,8 +407,8 @@ class SummaryScreen: public Screen
 		}
 		double acceleration;
 		if (newStatus->speed != oldStatus->speed || newStatus->refresh) {
-			if (newStatus->speed < 10)                                   printCenteredText(String(newStatus->speed, 2), 3, textColor, 107, 0, 64);
-			else if (newStatus->speed >= 10 && newStatus->speed < 100)   printCenteredText(String(newStatus->speed, 2), 3, textColor, 107, 0, 64);
+			if (newStatus->speed < 10)                                   printCenteredText(String(newStatus->speed, 1), 3, textColor, 107, 0, 64);
+			else if (newStatus->speed >= 10 && newStatus->speed < 100)   printCenteredText(String(newStatus->speed, 1), 3, textColor, 107, 0, 64);
 			else if (newStatus->speed >= 100 && newStatus->speed < 1000) printCenteredText(String(newStatus->speed, 1), 3, textColor, 107, 0, 64);
 			else if (newStatus->speed >= 1000)                           printCenteredText(String(newStatus->speed, 0), 3, textColor, 107, 0, 64);
 			printCenteredText(String(newStatus->acceleration, 2), 2, textColor, 107, 0, 95);
@@ -474,10 +460,10 @@ class SummaryScreen: public Screen
 			display.print("ALTITUDE");
 		}
 		if (oldStatus->altitude != newStatus->altitude || newStatus->refresh) {
-			if      (newStatus->altitude <= -100 || newStatus->altitude >= 1000)   printCenteredText(String(newStatus->altitude, 0), 3, textColor, 107, 214, 162);
+			if      (newStatus->altitude <= -100 || newStatus->altitude >= 1000)   printCenteredText(String(newStatus->altitude, 0), 3, textColor, 107, 0, 162);
 			else if ((newStatus->altitude <= -10 && newStatus->altitude > -100) ||
 					 (newStatus->altitude >= 100 && newStatus->altitude < 1000))   printCenteredText(String(newStatus->altitude, 1), 3, textColor, 107, 0, 162);
-			else if (-10 < newStatus->altitude && newStatus->altitude < 100)       printCenteredText(String(newStatus->altitude, 2), 3, textColor, 107, 0, 162);
+			else if (-10 < newStatus->altitude && newStatus->altitude < 100)       printCenteredText(String(newStatus->altitude, 1), 3, textColor, 107, 0, 162);
 		}
 	}
 
@@ -1255,16 +1241,16 @@ void setup() {
 	GPS.begin(9600);
 	
 	// Tell the GPS to send over all data.
-	GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
+	//GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_ALLDATA);
 
 	// Set the update rate
-	GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
+	//GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 100 millihertz (once every 10 seconds), 1Hz or 5Hz update rate
 	
 	// Turn off updates on antenna status.
-	GPS.sendCommand(PGCMD_NOANTENNA);
+	//GPS.sendCommand(PGCMD_NOANTENNA);
 
-	GPS.sendCommand(PMTK_ENABLE_SBAS);
-	GPS.sendCommand(PMTK_ENABLE_WAAS);
+	//GPS.sendCommand(PMTK_ENABLE_SBAS);
+	//GPS.sendCommand(PMTK_ENABLE_WAAS);
 
 	// the nice thing about this code is you can have a timer0 interrupt go off
 	// every 1 millisecond, and read data from the GPS for you. that makes the
@@ -1384,24 +1370,35 @@ void printTopBar() {
 
 
 void logPointToFile(DeviceAddress tempSensor) {
+
 	// Print the current time.
+    //Serial.println("ASDF1");
 	if (logfile.print(newDate.getISOTimestamp()) == 0)  error(WRITE_ERROR);
+    //Serial.println("ASDF2");
 	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
+    //Serial.println("ASDF3");
 
 	// Print the latitude
 	if (logfile.print(GPS.latitudeDegrees,14) == 0)     error(WRITE_ERROR);
+    //Serial.println("ASDF4");
 	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
+    //Serial.println("ASDF5");
 
 	// Print the longitude
 	if (logfile.print(GPS.longitudeDegrees,14) == 0)    error(WRITE_ERROR);
+    //Serial.println("ASDF6");
 	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
+    //Serial.println("ASDF7");
 
 	// Print the altitude
 	if (logfile.print(GPS.altitude,14) == 0)            error(WRITE_ERROR);
+    //Serial.println("ASDF8");
 	if (logfile.print(';') == 0)                        error(WRITE_ERROR);
+    //Serial.println("ASDF9");
 
 	// Print the temperature.
 	if (logfile.println(newGpsStatus.temperature) == 0) error(WRITE_ERROR);
+    //Serial.println("ASDF10");
 
 	logfile.flush();
 }
@@ -1572,7 +1569,7 @@ void loop() {
 			return;  // we can fail to parse a sentence in which case we should just wait for another
 			
 		// Sentence parsed! Display updated data!
-		if (strstr(stringptr, "GGA")) {
+		if (strstr(stringptr, "GNS")) {
             if (GPS.speed*1.852 < 0.05) {
                 GPS.speed = 0.0;
             }
@@ -1618,10 +1615,15 @@ void loop() {
 
 		// Rad. lets log it! Only if the GPS has aquired a fix!
 		if ((!(LOG_FIXONLY && !GPS.fix)) && strstr(stringptr, "RMC")){
-			logPointToFile(tempDeviceAddress);
-			newGpsStatus.points++;
+            if(newDate.day != 0 && newDate.mth != 0){
+    			Serial.print(newDate.day);
+                Serial.print(" - ");
+                Serial.println(newDate.mth);
+                logPointToFile(tempDeviceAddress);
+                newGpsStatus.points++;
+            }
 		}
-		if (strstr(stringptr, "GGA")) {
+		if (strstr(stringptr, "GNS")) {
 			// Display the selected screen.
 			screens[currentScreen]->displayScreen(&newGpsStatus, &oldGpsStatus);
 			// Do not refresh the elements that do not have to be refreshed again.
@@ -1630,7 +1632,5 @@ void loop() {
 			oldGpsStatus = newGpsStatus;
 			oldDate      = newDate;
 		}
-
-		
 	}
 }
