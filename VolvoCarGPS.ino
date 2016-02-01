@@ -13,7 +13,7 @@
 #include <math.h>
 #include "SharedFunctions.cpp"
 
-Adafruit_GPS      GPS(&Serial3);                                      // Library driver for the GPS.
+Ublox_GPS         GPS(&Serial3);                                      // Library driver for the GPS.
 Adafruit_TFTLCD   display(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET); // Library driver for the TFT LCD.
 Adafruit_FT6206   ts = Adafruit_FT6206();                             // Library driver for the touch.
 OneWire           oneWire(ONE_WIRE_BUS);                              // Library for the digital temperature sensor.
